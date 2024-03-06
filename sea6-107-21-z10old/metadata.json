@@ -1,0 +1,16 @@
+{
+  "name":"sea6-107-21-z10old",
+  "description":"",
+  "version":2,
+  "minzoom":0,
+  "maxzoom":5,
+  "center":"122.9273032,29.5312500,0",
+  "bounds":"122.1046063,28.1250000,123.7500000,30.9375000",
+  "type":"overlay",
+  "format":"pbf",
+  "crs":"EPSG:4326",
+  "tile_origin_upper_left_x":-180.0,
+  "tile_origin_upper_left_y":90.0,
+  "tile_dimension_zoom_0":180.0,
+  "json":"{\n  \"vector_layers\":[\n    {\n      \"id\":\"ele100\",\n      \"description\":\"\",\n      \"minzoom\":10,\n      \"maxzoom\":10,\n      \"fields\":{\n        \"elev\":\"Number\"\n      }\n    }\n  ],\n  \"tilestats\":{\n    \"layerCount\":1,\n    \"layers\":[\n      {\n        \"layer\":\"ele100\",\n        \"count\":1,\n        \"geometry\":\"Polygon\",\n        \"attributeCount\":1,\n        \"attributes\":[\n          {\n            \"attribute\":\"elev\",\n            \"count\":1,\n            \"type\":\"number\",\n            \"values\":[\n              -100\n            ],\n            \"min\":-100,\n            \"max\":-100\n          }\n        ]\n      }\n    ]\n  }\n}"
+}

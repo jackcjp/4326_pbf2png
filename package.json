@@ -1,0 +1,19 @@
+{
+  "name": "change_color_and_format",
+  "version": "1.0.0",
+  "description": "",
+  "main": "change_color_format.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=10 <11"
+  },
+  "dependencies": {
+    "@mapbox/mapbox-gl-native": "^5.0.2",
+    "better-sqlite3": "^7.5.0",
+    "sharp": "0.26.2"
+  }
+}
