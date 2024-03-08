@@ -6,21 +6,22 @@ const zlib = require('zlib');
 const mercator = new (require('@mapbox/sphericalmercator'))();
 
 
-
+// 4326 test
 // const data = fs.readFileSync('168.pbf')
 // const z =10,  x =861, y =168
 // const data = fs.readFileSync('340.pbf')
 // // const z =10,  x =1723, y =340
 // const z = 9, x = 1723, y = 340
 
-// const data = fs.readFileSync('0_0_0.pbf')
+// 3857 test
+// const data = fs.readFileSync('./pbf/0_0_0.pbf')
 // const z = 0, x = 0, y = 0
 
-const data = fs.readFileSync('1_0_0.pbf')
+const data = fs.readFileSync('./pbf/1_0_0.pbf')
 const z = 1, x = 0, y = 0
-// const data = fs.readFileSync('5_26_12.pbf')
+// const data = fs.readFileSync('./pbf/5_26_12.pbf')
 // const z = 5, x = 26, y = 12
-// const data = fs.readFileSync('6_53_24.pbf')
+// const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
 let topRightCorner = [-90.0, -180.0];
@@ -150,8 +151,8 @@ const mercatorCenter = function (z, x, y) {
 
 const aa = async (proj) => {
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
-    console.log('bbbbbb', tileCenter)
-    console.log('bbbbbb22222222', data)
+    // console.log('bbbbbb', tileCenter)
+    // console.log('bbbbbb22222222', data)
     console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter);
     console.log('z', z, 'x', x, 'y', y, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
 
