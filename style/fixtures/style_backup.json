@@ -1,0 +1,236 @@
+{
+    "version": 8,
+    "name": "OSM Liberty",
+    "metadata": {
+      "maputnik:license": "https://github.com/maputnik/osm-liberty/blob/gh-pages/LICENSE.md",
+      "maputnik:renderer": "mbgljs",
+      "openmaptiles:version": "3.x"
+    },
+    "sources": {
+      "sea1012_05": {
+        "type": "vector",
+        "tiles": [
+          "http://123.57.47.59:8025/offlineMbtiles/{z}/{x}/{y}.pbf?url=sea1012_05.mbtiles"
+        ],
+        "minZoom": 0,
+        "maxZoom": 14
+      },
+      "svc": {
+        "type": "raster",
+        "tiles": [
+          "https://tiles.geovis.online/base/v1/img/{z}/{x}/{y}?tmsIds=c&format=png&token=67f32bf81e370ccedd560baf089a50175b545b90ff087edb8c1e6f2a2e4dfa0c"
+        ],
+        "minzoom": 0,
+        "maxzoom": 14
+      }
+    },
+    "layers": [
+      {
+        "id": "svc",
+        "type": "raster",
+        "source": "svc",
+        "layout": {"visibility": "none"}
+      },
+      {
+        "id": "ele100",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele100",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(193, 247, 253, 1)"}
+      },
+      {
+        "id": "ele250",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele250",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(166, 241, 252, 1)"}
+      },
+      {
+        "id": "ele500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(146, 223, 248, 1)"}
+      },
+      {
+        "id": "ele750",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele750",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(130, 210, 245, 1)"}
+      },
+      {
+        "id": "ele1000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele1000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(114, 198, 241, 1)"}
+      },
+      {
+        "id": "ele1250",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele1250",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(99, 182, 236, 1)"}
+      },
+      {
+        "id": "ele1500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele1500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(87, 163, 231, 1)"}
+      },
+      {
+        "id": "ele1750",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele1750",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(78, 146, 224, 1)"}
+      },
+      {
+        "id": "ele2000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele2000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(66, 131, 218, 1)"}
+      },
+      {
+        "id": "ele2500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele2500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(58, 118, 211, 1)"}
+      },
+      {
+        "id": "ele3000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele3000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(48, 103, 203, 1)"}
+      },
+      {
+        "id": "ele3500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele3500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(40, 92, 193, 1)"}
+      },
+      {
+        "id": "ele4000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele4000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(33, 79, 183, 1)"}
+      },
+      {
+        "id": "ele4500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele4500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(28, 67, 170, 1)"}
+      },
+      {
+        "id": "ele5000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele5000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(22, 57, 157, 1)"}
+      },
+      {
+        "id": "ele5500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele5500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(18, 46, 143, 1)"}
+      },
+      {
+        "id": "ele6000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele6000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(13, 36, 127, 1)"}
+      },
+      {
+        "id": "ele6500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele6500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(9, 27, 110, 1)"}
+      },
+      {
+        "id": "ele7000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele7000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(5, 18, 88, 1)"}
+      },
+      {
+        "id": "ele7500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele7500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(2, 12, 68, 1)"}
+      },
+      {
+        "id": "ele8000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele8000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(0, 5, 48, 1)"}
+      },
+      {
+        "id": "ele8500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele8500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(0, 5, 37, 1)"}
+      },
+      {
+        "id": "ele9000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele9000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(0, 5, 32, 1)"}
+      },
+      {
+        "id": "ele9500",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele9500",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(0, 5, 21, 1)"}
+      },
+      {
+        "id": "ele12000",
+        "type": "fill",
+        "source": "sea1012_05",
+        "source-layer": "ele12000",
+        "layout": {"visibility": "visible"},
+        "paint": {"fill-color": "rgba(0, 0, 0, 1)"}
+      }
+    ],
+    "id": "osm-liberty"
+  }
