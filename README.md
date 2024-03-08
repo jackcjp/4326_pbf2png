@@ -7,19 +7,21 @@ docker build -t cjp/pbf2png:v1 .
 docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
 
 Steps:
-0. Prepare the docker environment and cjp/pbf2png image;
+0. Prepare the docker environment and cjp/pbf2png image; You may need to replace the style.json if you want customed style.
 1. Modify and copy config.json to current data dir, the config path should match the $(pwd);
     E.g.: $(pwd) is /mnt/144_8/gis_data/sea9, the inputDirPath is the mbtile in /mnt/144_8/gis_data/sea9, such as '/data',
     the metadataDirPath is the metadata location dir path, such as 'sea2-0-1-z9'.
     If the metadataDirPath dir is not same as the inputDirPath, more volumes are needed.
     E.g.: 'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1'
-    The outputDirPath can also be defined in the config.json, volume may be also needed.
+    The outputDirPath(optional) can also be defined in the config.json, volume may be also needed.
+    The default projection is 4326. You need to add "proj":3857 into config.json if you want mercator(3857).
+
 2. Run a docker container to remove over bound tiles, add color, change format with the command above; 
     NOTE: pay attention to container name and port when running more than one instance.
 3. Recheck the log, mbtiles to confirm it works well.
 
-0. 准备好docker环境和cjp/pbf2png image；
-1. 修改config.json，添加inputDirPath， metadataDirPath， outputDirPath（可选的）
+0. 准备好docker环境和cjp/pbf2png image；如果你想自定义style（pbf的上色），你得替换style/fixtures/里的style.json
+1. 修改config.json，添加inputDirPath， metadataDirPath（可选的）， outputDirPath（可选的）
     config.json的路径要和映射的volume 的路径对应
     例如：volume 的路径是/mnt/144_8/gis_data/sea9:/data， inputDirPath就是sea9目录下的一个mbtiles， inputDirPath:"/data";
     metadataDirPath，outputDirPath也是同样的。
