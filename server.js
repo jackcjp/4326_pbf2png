@@ -223,8 +223,8 @@ let readMbtiles = async function () {
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
     const proj = args['proj'];
-    // const sqliteQueue = getFilelist(inputDirPath);    
-    const sqliteQueue = ['/data/0-8.mbtiles'];
+    const sqliteQueue = getFilelist(inputDirPath);    
+    // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
         let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_png' + '.mbtiles';

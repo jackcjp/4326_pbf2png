@@ -1,5 +1,5 @@
 ### 支持4326、3857pbf 通过style.json上色，并转格式
-读去mbtiles/sqlite中的pbf，上色并转换格式保存到mbtiles中
+读取配置文件路径下的mbtiles/sqlite中的pbf，上色并转换格式保存到mbtiles中
 
 
 docker build -t cjp/pbf2png:v1 .
