@@ -6,7 +6,7 @@ docker build -t cjp/pbf2png:v1 .
 
 docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
 
-Steps:
+#### Steps:
 0. Prepare the docker environment and cjp/pbf2png image; You may need to replace the style.json if you want customed style.
 1. Modify and copy config.json to current data dir, the config path should match the $(pwd);
     E.g.: $(pwd) is /mnt/144_8/gis_data/sea9, the inputDirPath is the mbtile in /mnt/144_8/gis_data/sea9, such as '/data',
@@ -19,7 +19,7 @@ Steps:
 2. Run a docker container to remove over bound tiles, add color, change format with the command above; 
     NOTE: pay attention to container name and port when running more than one instance.
 3. Recheck the log, mbtiles to confirm it works well.
-
+#### 步骤
 0. 准备好docker环境和cjp/pbf2png image；如果你想自定义style（pbf的上色），你得替换style/fixtures/里的style.json
 1. 修改config.json，添加inputDirPath， metadataDirPath（可选的）， outputDirPath（可选的）
     config.json的路径要和映射的volume 的路径对应
