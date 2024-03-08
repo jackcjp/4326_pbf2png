@@ -1,10 +1,11 @@
 const fs = require('fs');
 const mbgl = require('@mapbox/mapbox-gl-native');
+const mercator = new (require('@mapbox/sphericalmercator'))();
 const sharp = require('sharp');
 const betterSqlite = require('better-sqlite3');
 const zlib = require('zlib');
 const path = require('path');
-const config = require('/data/config.json');
+const config = require('/data/chang_color_and_format_config.json');
 const logPath = '/data/log.txt';
 
 const limit = 1000;
@@ -18,17 +19,17 @@ let sourceZoom = 2;
 let targetZoom = 10;  // E.g. Here cut level 10 tiles by level 2 grid
 let bount = undefined;
 
-mbgl.on('message', function(err) {
+mbgl.on('message', function (err) {
     if (err.severity === 'WARNING' || err.severity === 'ERROR') {
         console.log('mbgl:', err);
     }
 });
 
-let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
+let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
     try {
         const options = {
             mode: "tile",
-            request: function(req, callback) {
+            request: function (req, callback) {
                 callback(null, { data: zlib.unzipSync(tileData) });
             },
             ratio
@@ -47,7 +48,7 @@ let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
         };
 
         return new Promise((resolve, reject) => {
-            map.render(params, async function(error, buffer) {
+            map.render(params, async function (error, buffer) {
                 if (error) {
                     console.error(error);
                     reject(error);
@@ -61,34 +62,39 @@ let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
                     }
                 });
                 return image.resize(tileSize, tileSize).toFormat(sharp.format.png).toBuffer()
-                .then(data => { resolve({'zoom_level':zoom, 'tile_column':x ,'tile_row':y, 'tile_data': data}) })
-                .catch( err => { 
-                    console.err(err);
-                    reject(err); 
-                });
+                    .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
+                    .catch(err => {
+                        console.err(err);
+                        reject(err);
+                    });
             });
         });
-    } catch(err) {
+    } catch (err) {
         console.log('change color and format err:', err);
     }
 }
-let connectDb = function(dbPath) {
+let connectDb = function (dbPath) {
     return betterSqlite(dbPath, /*{ verbose: console.log }*/);
 }
 
-let parseMetadata = function(metadataPath) {
+let parseMetadata = function (metadataPath) {
     const fileBuff = fs.readFileSync(metadataPath);
     let metadata = JSON.parse(fileBuff);
     metadata.json = JSON.stringify(JSON.parse(metadata.json));
     return Object.keys(metadata).map(key => {
-        return {'name': key, 'value': metadata[key]}
+        return { 'name': key, 'value': metadata[key] }
     });
 }
 
-let createDb = async function(metadataPath, outputPath) {
+let createDb = async function (metadataPath, inputDb, outputPath) {
     const outputDb = connectDb(outputPath);
     outputDb.prepare('CREATE TABLE IF NOT EXISTS metadata (name text, value text)').run();
-    const meta = parseMetadata(metadataPath);
+    let meta;
+    if (metadataPath) {
+        meta = parseMetadata(metadataPath, inputDb);
+    } else {
+        meta = inputDb.prepare(`SELECT * from metadata;`).all();
+    }
     let insert = outputDb.prepare(`INSERT INTO metadata (name, value) VALUES (@name, @value);`);
     const insertMany = outputDb.transaction(async (mdata) => {
         for (let item of mdata) {
@@ -97,9 +103,9 @@ let createDb = async function(metadataPath, outputPath) {
     });
     await insertMany(meta);
     outputDb.prepare('CREATE TABLE IF NOT EXISTS tiles (zoom_level integer NOT NULL, tile_column integer NOT NULL, tile_row integer NOT NULL, tile_data blob)').run();
-    return betterSqlite(outputPath, /*{ verbose: console.log }*/);
+    return outputDb;
 }
-let createIndex = function(outputPath) {
+let createIndex = function (outputPath) {
     const outputDb = connectDb(outputPath);
     outputDb.prepare('CREATE UNIQUE INDEX IF NOT EXISTS tile_index ON tiles ( "zoom_level" ASC,"tile_column" ASC, "tile_row" ASC);').run();
 }
@@ -126,7 +132,7 @@ const scaleDenominator_dic = {
 };
 
 
-let truncate_lnglat = function(lng, lat) {
+let truncate_lnglat = function (lng, lat) {
     if (lng > 180.0) {
         lng = 180.0
     }
@@ -142,7 +148,7 @@ let truncate_lnglat = function(lng, lat) {
     return [lng, lat];
 }
 
-let ul = function(z, x, y, curCorner) {
+let ul = function (z, x, y, curCorner) {
     let scaleDenominator = scaleDenominator_dic[(z).toString()];
     let res = scaleDenominator * 0.00028 / (2 * Math.PI * 6378137 / 360.0);
     let origin_x = curCorner ? curCorner[1] : topRightCorner[1];
@@ -152,7 +158,7 @@ let ul = function(z, x, y, curCorner) {
     return [lon, lat];
 }
 
-let calCenter = function(z, x, y) {
+let calCenter = function (z, x, y) {
     let lt = ul(z, x, y);
     let left = lt[0], top = lt[1];
     let rb = ul(z, x + 1, y + 1);
@@ -163,7 +169,14 @@ let calCenter = function(z, x, y) {
     return truncate_lnglat.apply(null, center);
 }
 
-let  getBound = function(x, y, targetZoom, sourceZoom, args) {
+const mercatorCenter = function (z, x, y) {
+    return mercator.ll([
+        ((x + 0.5) / (1 << z)) * (256 << z),
+        ((y + 0.5) / (1 << z)) * (256 << z)
+    ], z);
+}
+
+let getBound = function (x, y, targetZoom, sourceZoom, args) {
     // console.log(x, y);
     targetZoom = Number.parseInt(targetZoom);
     sourceZoom = Number.parseInt(sourceZoom);
@@ -178,10 +191,10 @@ function isOverBound(inputPath, z, x, y, args) {
     const [boundX, boundY, targetZoom] = path.basename(inputPath, '.sqlite').split(/[\-\_]/).map(p => Number.parseInt(p)).filter(p => !Number.isNaN(p));
     // console.log('z', z, 'x', x, 'y', y , 'boundX', boundX, 'boundY', boundY, 'targetZoom, targetZoom);
     bound = bount ? bount : getBound(boundX, boundY, targetZoom, sourceZoom, args);
-    const inBound = z == targetZoom && x >=  bound.minX && x <= bound.maxX && y <= bound.maxY && y >= bound.minY;
+    const inBound = z == targetZoom && x >= bound.minX && x <= bound.maxX && y <= bound.maxY && y >= bound.minY;
     const isOverBound = z !== targetZoom || x < bound.minX || x > bound.maxX || y > bound.maxY || y < bound.minY;
     // console.log('z', z, 'x', x, 'y', y, 'isOverBound', isOverBound);
-    if (!inBound !==isOverBound)
+    if (!inBound !== isOverBound)
         console.log('isOverBound _ || not equal to inBound, isOverBound', isOverBound, 'inBound', inBound);
     return isOverBound
 }
@@ -204,29 +217,34 @@ function getFilelist(inputPath) {
     return sqliteQueue;
 }
 
-let readMbtiles = async function() {
-    const args = config; 
+let readMbtiles = async function () {
+    const args = config;
     console.log('args:', args);
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
-    const sqliteQueue = getFilelist(inputDirPath);
+    const proj = args['proj'];
+    // const sqliteQueue = getFilelist(inputDirPath);    
+    const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
-        let outputPath = path.basename(inputPath, '.sqlite') + '_png' + '.mbtiles';
-        outputPath = args['outputDirPath'] ? path.resolve(args['outputDirPath'], outputPath) : outputPath;
+        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_png' + '.mbtiles';
+        outputPath = args['outputDirPath'] ? path.resolve(args['outputDirPath'], outputPath) : path.resolve(args['inputDirPath'], outputPath);
         console.log('No.', sqliteQueue.indexOf(inputPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
         }
         const inputDb = connectDb(inputPath);
-        const metadataPath = path.resolve(metadataDirPath, path.basename(inputPath, '.sqlite').split(/[\_]/).find(p => p.startsWith('sea2')), 'metadata.json');
-        if (!fs.existsSync(metadataPath)) {
-            throw Error(`path ${metadataPath} not existed!`, metadataPath);
+        let metadataPath = undefined;
+        if (metadataDirPath) {
+            metadataPath = path.resolve(metadataDirPath, path.basename(inputPath, '.sqlite').split(/[\_]/).find(p => p.startsWith('sea2')), 'metadata.json');
+            if (!fs.existsSync(metadataPath)) {
+                console.log(`path ${metadataPath} not existed!`, metadataPath);
+            }
         }
-        const outputDb = await createDb(metadataPath, outputPath);
+        const outputDb = await createDb(metadataPath, inputDb, outputPath);
         const startTime = Date.now();
         const count = inputDb.prepare(`SELECT count(*) from tiles;`).pluck().get();
-        const pageCount = Math.ceil(count/limit);
+        const pageCount = Math.ceil(count / limit);
         console.log('Total count', count, ', page count', pageCount, ', page limit', limit);
         let currCount = 0;
         let overBoundCount = 0;
@@ -237,15 +255,20 @@ let readMbtiles = async function() {
             let res = [];
             for (let item of data) {
                 let z = item.zoom_level, x = item.tile_column, y = item.tile_row, tile_data = item.tile_data;
-                if (isOverBound(inputPath, z, x, y)) {
+                // 3857的按全球的处理，不用计算是否超边界
+                if (proj != 3857 && isOverBound(inputPath, z, x, y)) {
                     overBoundCount++;
                     continue;
                 }
-                const tileCenter = calCenter(z, x, y);
+                const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
                 // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
-                // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
-                item.tile_data = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
-                res.push(item.tile_data);
+                console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
+                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
+                // 3857的需要对y做翻转
+                if (proj === 3857) {
+                    item.tile_row = 2 ** z - 1 - item.tile_row;
+                }
+                res.push(item);
             }
             const insert = outputDb.prepare(`INSERT INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (@zoom_level, @tile_column, @tile_row, @tile_data);`);
             const insertMany = outputDb.transaction(async (ndata) => {
@@ -263,7 +286,7 @@ let readMbtiles = async function() {
         createIndex(outputPath);
         console.log('Create index finished!');
         console.log('Finshed! Total time cost:', (Date.now() - startTime) / 1000 / 60);
-        fs.appendFileSync(logPath, 'No. ' + (sqliteQueue.indexOf(inputPath) + 1) + ' '+ new Date().toLocaleString() + ' ' + outputPath + '\n');
+        fs.appendFileSync(logPath, 'No. ' + (sqliteQueue.indexOf(inputPath) + 1) + ' ' + new Date().toLocaleString() + ' ' + outputPath + '\n');
     }
 }
 

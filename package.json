@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@mapbox/mapbox-gl-native": "^5.0.2",
+    "@mapbox/sphericalmercator": "1.1.0",
     "better-sqlite3": "^7.5.0",
     "sharp": "0.26.2"
   }

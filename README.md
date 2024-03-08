@@ -21,8 +21,25 @@ Steps:
     例如：volume 的路径是/mnt/144_8/gis_data/sea9:/data， inputDirPath就是sea9目录下的一个mbtiles， inputDirPath:"/data";
     metadataDirPath，outputDirPath也是同样的。
     如果inputDirPath，metadataDirPath，outputDirPath不是在同一个文件夹下，那么都需要volume进到container中。
+
+    proj 默认是4326的，如果需要做3857的，就需要配置proj为3857
+
     配置完成后把config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
 2. 通过命令行 (E.g.:'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1')
     启动一个container就可以开始跑了。
     如果想同时开跑多个container实例，记得区分name和port就行。
 3. 跑完后检查日志和生成的mbtiles，看是否正确。
+
+
+// run script local, recommand use docker envrionment
+// sudo apt-get update && sudo apt-get install xvfb && npm install
+// EGL_LOG_LEVEL=debug
+// output: /input/db/path_png.mbtiles located at the same path
+// xvfb-run -a -s '-screen 0 800x600x24' node server.js /input/db/path
+// e.g.: xvfb-run -a -s '-screen 0 800x600x24' node server.js ./2-6-1.mbtiles
+
+请求pbf文件
+http://10.1.108.195:32527/data/gebco_polygon4osm/0/0/0.pbf
+
+请求上色png
+http://localhost:1234/styles/gebco_polygon4osm/0/0/0.png

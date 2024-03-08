@@ -3,14 +3,25 @@ const fs = require('fs')
 const mbgl = require('@mapbox/mapbox-gl-native');
 const sharp = require('sharp');
 const zlib = require('zlib');
+const mercator = new (require('@mapbox/sphericalmercator'))();
 
 
 
 // const data = fs.readFileSync('168.pbf')
 // const z =10,  x =861, y =168
-const data = fs.readFileSync('340.pbf')
-// const z =10,  x =1723, y =340
-const z =9,  x =1723, y =340
+// const data = fs.readFileSync('340.pbf')
+// // const z =10,  x =1723, y =340
+// const z = 9, x = 1723, y = 340
+
+// const data = fs.readFileSync('0_0_0.pbf')
+// const z = 0, x = 0, y = 0
+
+const data = fs.readFileSync('1_0_0.pbf')
+const z = 1, x = 0, y = 0
+// const data = fs.readFileSync('5_26_12.pbf')
+// const z = 5, x = 26, y = 12
+// const data = fs.readFileSync('6_53_24.pbf')
+// const z = 6, x = 53, y = 24
 
 let topRightCorner = [-90.0, -180.0];
 
@@ -43,7 +54,7 @@ const scaleDenominator_dic = {
 };
 
 
-let truncate_lnglat = function(lng, lat) {
+let truncate_lnglat = function (lng, lat) {
     if (lng > 180.0) {
         lng = 180.0
     }
@@ -59,12 +70,14 @@ let truncate_lnglat = function(lng, lat) {
     return [lng, lat];
 }
 
-let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
+let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
     try {
         const options = {
             mode: "tile",
-            request: function(req, callback) {
-                callback(null, { data: zlib.unzipSync(tileData) });
+            request: function ({}, callback) {
+                // 3857的pbf 读本地pbf不需要unzipSync, 可能读mbtiles文件需要unzipSync（待验证）
+                callback(null, { data: tileData });
+                // callback(null, { data: zlib.unzipSync(tileData) });
             },
             ratio
         };
@@ -83,7 +96,7 @@ let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
 
         console.log('options22222', params);
         return new Promise((resolve, reject) => {
-            map.render(params, async function(error, buffer) {
+            map.render(params, async function (error, buffer) {
                 if (error) {
                     console.error(error);
                     reject(error);
@@ -97,18 +110,18 @@ let changeColorAndFormat = function(zoom, x, y, lon, lat, tileData) {
                     }
                 });
                 return image.resize(tileSize, tileSize).toFormat(sharp.format.png).toBuffer()
-                .then(data => { resolve({'zoom_level':zoom, 'tile_column':x ,'tile_row':y, 'tile_data': data}) })
-                .catch( err => { 
-                    console.err(err);
-                    reject(err); 
-                });
+                    .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
+                    .catch(err => {
+                        console.err(err);
+                        reject(err);
+                    });
             });
         });
-    } catch(err) {
+    } catch (err) {
         console.log('change color and format err:', err);
     }
 }
-let ul = function(z, x, y, curCorner) {
+let ul = function (z, x, y, curCorner) {
     let scaleDenominator = scaleDenominator_dic[(z).toString()];
     let res = scaleDenominator * 0.00028 / (2 * Math.PI * 6378137 / 360.0);  //计算完跟4326度为单位的分辨率一样https://file.geovisearth.com/worldL8ok1_fill_4326_0_18/tilemapresource.xml
     let origin_x = curCorner ? curCorner[1] : topRightCorner[1];
@@ -117,7 +130,7 @@ let ul = function(z, x, y, curCorner) {
     let lat = origin_y - y * res * tileSize;
     return [lon, lat];
 }
-let calCenter = function(z, x, y) {
+let calCenter = function (z, x, y) {
     let lt = ul(z, x, y);
     let left = lt[0], top = lt[1];
     let rb = ul(z, x + 1, y + 1);
@@ -127,19 +140,66 @@ let calCenter = function(z, x, y) {
     let center = ul(z, x, y, curCorner);
     return truncate_lnglat.apply(null, center);
 }
-const aa = async () => {
-    const tileCenter = calCenter(z, x, y);
+
+const mercatorCenter = function (z, x, y) {
+    return mercator.ll([
+        ((x + 0.5) / (1 << z)) * (256 << z),
+        ((y + 0.5) / (1 << z)) * (256 << z)
+    ], z);
+}
+
+const aa = async (proj) => {
+    const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     console.log('bbbbbb', tileCenter)
     console.log('bbbbbb22222222', data)
-    console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
-    console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
+    console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter);
+    console.log('z', z, 'x', x, 'y', y, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
 
-    const tile_data = await changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), data);
-    
+    const tile_data = await changeColorAndFormat(z, x, y, parseFloat(tileCenter[0].toFixed(20)), parseFloat(tileCenter[1].toFixed(20)), data);
+
     console.log('tile_data', tile_data);
 
     // fs.writeFileSync('/data/168-out.png', tile_data)
-    fs.writeFileSync('/data/340-out.png', tile_data.tile_data)
+    // fs.writeFileSync('/data/000-out.png', tile_data.tile_data)
+    fs.writeFileSync('/data/100-out.png', tile_data.tile_data)
+    // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
+    // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
     console.log('finished')
 }
-aa();
+// aa();
+aa(3857);
+
+// 配置sources有两种可用的方案
+
+// 方案一 这里style的sources会影响转色结果，tiles需要http://10.1.108.195:32527/data/gebco_polygon4osm/{z}/{x}/{y}.pbf这种形式
+//   "sources": {
+//     "gebco_polygon4osm": {
+//         "type": "vector",
+//         "tiles": [
+//           "http://10.1.108.195:32527/data/gebco_polygon4osm/{z}/{x}/{y}.pbf"
+//         ],
+//         "minZoom": 0,
+//         "maxZoom": 14
+//       }
+//     }
+
+// 方案二 也可参考官方案例，具体配置见 [https://github.com/mapbox/mapbox-gl-native/blob/f2778251c97ba3403582b9c04290c50f927fd338/platform/node/test/fixtures/style.json#L8-L10]
+// 若要按官方配置需要把tiles/0-0-0.vector.pbf放到style/fixtures/下面
+
+// mbtiles暂不可用（报错Invalid value. at offset 0，官方文档[https://github.com/mapbox/mapbox-gl-native/blob/f2778251c97ba3403582b9c04290c50f927fd338/platform/node/README.md]提供的也是上面tiles这种形式）
+// "sources": {
+//     "gebco_polygon4osm": {
+//       "type": "vector",
+//       "url": "mbtiles://gebco_polygon4osm.mbtiles",
+//       "minZoom": 0,
+//       "maxZoom": 14
+//     }
+//   },
+
+// xvfb-run -a -s '-screen 0 800x600x24' node pbf2png-one.js ./2-6-1.mbtiles
+
+
+// style.json与pbf  在4326和3857下有没有区别？
+// style 可以相同，但是pbf是不同的，也就是说做4326的和3857的pbf是不同的，但是style是可以相同的
+
+
