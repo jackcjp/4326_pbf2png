@@ -5,7 +5,7 @@ const sharp = require('sharp');
 const betterSqlite = require('better-sqlite3');
 const zlib = require('zlib');
 const path = require('path');
-const config = require('/data/chang_color_and_format_config.json');
+const config = require('/data/change_color_and_format_config.json');
 const logPath = '/data/log.txt';
 
 const limit = 1000;
