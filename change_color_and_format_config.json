@@ -1,4 +1,6 @@
 {
-    "inputDirPath":"/data",
+    "inputDirPath":"/data/0-8.sqlite",
+    "stylePath":"./style/fixtures/style_0_8.json",
+    "outputDirPath":"/data/",
     "proj": 3857
 }

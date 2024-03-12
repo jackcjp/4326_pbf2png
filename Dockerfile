@@ -22,7 +22,7 @@ RUN unzip /usr/src/app/node_modules_bak.zip -d /usr/src/app/node_modules
 RUN rm /usr/src/app/node_modules_bak.zip
 ENV NODE_ENV="production"
 
-RUN cd /usr/src/app && npm --registry https://registry.npm.taobao.org install --production
+RUN cd /usr/src/app && npm --registry https://registry.npmmirror.com install --production
 RUN npm rebuild --verbose sharp
 
 

@@ -36,7 +36,9 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         };
         // console.log('options', options);
         const map = new mbgl.Map(options);
-        map.load(require('./style/fixtures/style.json'));
+
+        const stylePath = args['stylePath'] || './style/fixtures/style.json';
+        map.load(require(stylePath));
 
         const params = {
             zoom: zoom,
@@ -61,7 +63,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.png).toBuffer()
+                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
@@ -213,12 +215,16 @@ function getFilelist(inputPath) {
             }
         }
     };
-    loopThroughtDir(inputPath);
+    if (inputPath.endsWith('sqlite') || inputPath.endsWith('mbtiles')) {
+        sqliteQueue = [`${inputPath}`]
+    } else {
+        loopThroughtDir(inputPath);
+    }
     return sqliteQueue;
 }
 
+const args = config;
 let readMbtiles = async function () {
-    const args = config;
     console.log('args:', args);
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
@@ -227,7 +233,7 @@ let readMbtiles = async function () {
     // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
-        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_png' + '.mbtiles';
+        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_webp' + '.mbtiles';
         outputPath = args['outputDirPath'] ? path.resolve(args['outputDirPath'], outputPath) : path.resolve(args['inputDirPath'], outputPath);
         console.log('No.', sqliteQueue.indexOf(inputPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
@@ -255,6 +261,10 @@ let readMbtiles = async function () {
             let res = [];
             for (let item of data) {
                 let z = item.zoom_level, x = item.tile_column, y = item.tile_row, tile_data = item.tile_data;
+                // 3857的需要对y做翻转
+                if (proj === 3857) {
+                    y = 2 ** z - 1 - y;
+                }
                 // 3857的按全球的处理，不用计算是否超边界
                 if (proj != 3857 && isOverBound(inputPath, z, x, y)) {
                     overBoundCount++;
@@ -264,10 +274,7 @@ let readMbtiles = async function () {
                 // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
                 console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
                 item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
-                // 3857的需要对y做翻转
-                if (proj === 3857) {
-                    item.tile_row = 2 ** z - 1 - item.tile_row;
-                }
+
                 res.push(item);
             }
             const insert = outputDb.prepare(`INSERT INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (@zoom_level, @tile_column, @tile_row, @tile_data);`);

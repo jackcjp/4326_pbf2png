@@ -17,10 +17,10 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 // const data = fs.readFileSync('./pbf/0_0_0.pbf')
 // const z = 0, x = 0, y = 0
 
-const data = fs.readFileSync('./pbf/1_0_0.pbf')
-const z = 1, x = 0, y = 0
-// const data = fs.readFileSync('./pbf/5_26_12.pbf')
-// const z = 5, x = 26, y = 12
+// const data = fs.readFileSync('./pbf/1_0_0.pbf')
+// const z = 1, x = 0, y = 0
+const data = fs.readFileSync('./pbf/5_26_12.pbf')
+const z = 5, x = 26, y = 12
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
