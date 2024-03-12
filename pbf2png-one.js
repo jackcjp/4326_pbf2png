@@ -162,9 +162,9 @@ const aa = async (proj) => {
 
     // fs.writeFileSync('/data/168-out.png', tile_data)
     // fs.writeFileSync('/data/000-out.png', tile_data.tile_data)
-    fs.writeFileSync('/data/100-out.png', tile_data.tile_data)
+    // fs.writeFileSync('/data/100-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
-    // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
+    fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
     console.log('finished')
 }
 // aa();

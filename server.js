@@ -249,7 +249,7 @@ let readMbtiles = async function () {
         }
         const outputDb = await createDb(metadataPath, inputDb, outputPath);
         const startTime = Date.now();
-        const count = inputDb.prepare(`SELECT count(*) from tiles;`).pluck().get();
+        const count = inputDb.prepare(`SELECT count(1) from tiles;`).pluck().get();
         const pageCount = Math.ceil(count / limit);
         console.log('Total count', count, ', page count', pageCount, ', page limit', limit);
         let currCount = 0;
@@ -264,9 +264,8 @@ let readMbtiles = async function () {
                 // 3857的需要对y做翻转
                 if (proj === 3857) {
                     y = 2 ** z - 1 - y;
-                }
-                // 3857的按全球的处理，不用计算是否超边界
-                if (proj != 3857 && isOverBound(inputPath, z, x, y)) {
+                } else if (isOverBound(inputPath, z, x, y)) {
+                    // 3857的按全球的处理，不用计算是否超边界
                     overBoundCount++;
                     continue;
                 }
