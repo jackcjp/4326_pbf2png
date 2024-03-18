@@ -6,3 +6,5 @@ sea10-all*
 2-6-1*
 pbf2webp.tar
 pbf2png.tar
+*.sqlite
+*.mbtiles

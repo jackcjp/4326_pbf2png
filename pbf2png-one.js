@@ -19,8 +19,10 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 
 // const data = fs.readFileSync('./pbf/1_0_0.pbf')
 // const z = 1, x = 0, y = 0
-const data = fs.readFileSync('./pbf/5_26_12.pbf')
-const z = 5, x = 26, y = 12
+// const data = fs.readFileSync('./pbf/5_26_12.pbf')
+// const z = 5, x = 26, y = 12
+const data = fs.readFileSync('/data/pbf/7_105_57.pbf')
+let z = 7, x = 105, y = 57
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
@@ -84,7 +86,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         };
         console.log('options', options);
         const map = new mbgl.Map(options);
-        map.load(require('./style/fixtures/style.json'));
+        map.load(require('/data/0-12-style-up.json'));
 
         const params = {
             zoom: zoom,
@@ -110,7 +112,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.png).toBuffer()
+                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
@@ -150,6 +152,7 @@ const mercatorCenter = function (z, x, y) {
 }
 
 const aa = async (proj) => {
+    y = 2 ** z - 1 - y;
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     // console.log('bbbbbb', tileCenter)
     // console.log('bbbbbb22222222', data)
@@ -164,7 +167,9 @@ const aa = async (proj) => {
     // fs.writeFileSync('/data/000-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/100-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
-    fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
+    // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
+    fs.writeFileSync(`/data/${z}_${x}_${y}-out.webp`, tile_data.tile_data)
+    
     console.log('finished')
 }
 // aa();

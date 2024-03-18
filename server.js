@@ -38,7 +38,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         const map = new mbgl.Map(options);
 
         const stylePath = args['stylePath'] || './style/fixtures/style.json';
-        map.load(require(stylePath));
+                map.load(require(stylePath));
 
         const params = {
             zoom: zoom,
@@ -51,7 +51,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
 
         return new Promise((resolve, reject) => {
             map.render(params, async function (error, buffer) {
-                if (error) {
+                                if (error) {
                     console.error(error);
                     reject(error);
                 }
