@@ -51,7 +51,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
 // e.g.: xvfb-run -a -s '-screen 0 800x600x24' node server.js ./2-6-1.mbtiles
 
 请求pbf文件
-http://10.1.108.195:32527/data/gebco_polygon4osm/0/0/0.pbf
+http://host:port/data/gebco_polygon4osm/0/0/0.pbf
 
 请求上色png
-http://localhost:1234/styles/gebco_polygon4osm/0/0/0.png
+http://localhost:port/styles/gebco_polygon4osm/0/0/0.png
