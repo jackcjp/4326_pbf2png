@@ -21,8 +21,10 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 // const z = 1, x = 0, y = 0
 // const data = fs.readFileSync('./pbf/5_26_12.pbf')
 // const z = 5, x = 26, y = 12
-const data = fs.readFileSync('/data/pbf/7_105_57.pbf')
-let z = 7, x = 105, y = 57
+// const data = fs.readFileSync('/data/pbf/7_105_57.pbf')
+// let z = 7, x = 105, y = 57
+const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
+let z = 6, x = 27, y = 52
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
@@ -77,7 +79,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
     try {
         const options = {
             mode: "tile",
-            request: function ({}, callback) {
+            request: function ({ }, callback) {
                 // 3857的pbf 读本地pbf不需要unzipSync, 可能读mbtiles文件需要unzipSync（待验证）
                 callback(null, { data: tileData });
                 // callback(null, { data: zlib.unzipSync(tileData) });
@@ -86,7 +88,8 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         };
         console.log('options', options);
         const map = new mbgl.Map(options);
-        map.load(require('/data/0-12-style-up.json'));
+        // map.load(require('/data/0-12-style-up.json'));
+        map.load(require('/data/style/fixtures/style_ns.json'));
 
         const params = {
             zoom: zoom,
@@ -105,6 +108,22 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                     reject(error);
                 }
                 map.release();
+
+                // Fix semi-transparent outlines on raw, premultiplied input
+                // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
+                for (var i = 0; i < buffer.length; i += 4) {
+                    var alpha = buffer[i + 3];
+                    var norm = alpha / 255;
+                    if (alpha === 0) {
+                        buffer[i] = 0;
+                        buffer[i + 1] = 0;
+                        buffer[i + 2] = 0;
+                    } else {
+                        buffer[i] = buffer[i] / norm;
+                        buffer[i + 1] = buffer[i + 1] / norm;
+                        buffer[i + 2] = buffer[i + 2] / norm;
+                    }
+                }
                 const image = sharp(buffer, {
                     raw: {
                         width: params.width,
@@ -169,7 +188,7 @@ const aa = async (proj) => {
     // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
     fs.writeFileSync(`/data/${z}_${x}_${y}-out.webp`, tile_data.tile_data)
-    
+
     console.log('finished')
 }
 // aa();

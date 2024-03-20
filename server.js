@@ -38,7 +38,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         const map = new mbgl.Map(options);
 
         const stylePath = args['stylePath'] || './style/fixtures/style.json';
-                map.load(require(stylePath));
+        map.load(require(stylePath));
 
         const params = {
             zoom: zoom,
@@ -51,11 +51,27 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
 
         return new Promise((resolve, reject) => {
             map.render(params, async function (error, buffer) {
-                                if (error) {
+                if (error) {
                     console.error(error);
                     reject(error);
                 }
                 map.release();
+
+                // Fix semi-transparent outlines on raw, premultiplied input
+                // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
+                for (var i = 0; i < buffer.length; i += 4) {
+                    var alpha = buffer[i + 3];
+                    var norm = alpha / 255;
+                    if (alpha === 0) {
+                        buffer[i] = 0;
+                        buffer[i + 1] = 0;
+                        buffer[i + 2] = 0;
+                    } else {
+                        buffer[i] = buffer[i] / norm;
+                        buffer[i + 1] = buffer[i + 1] / norm;
+                        buffer[i + 2] = buffer[i + 2] / norm;
+                    }
+                }
                 const image = sharp(buffer, {
                     raw: {
                         width: params.width,
@@ -229,7 +245,7 @@ let readMbtiles = async function () {
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
     const proj = args['proj'];
-    const sqliteQueue = getFilelist(inputDirPath);    
+    const sqliteQueue = getFilelist(inputDirPath);
     // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
@@ -271,7 +287,7 @@ let readMbtiles = async function () {
                 }
                 const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
                 // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
-                console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
+                console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
                 item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
 
                 res.push(item);

@@ -1,0 +1,34 @@
+{
+    "version": 8,
+    "name": "OSM Liberty",
+    "metadata": {
+        "maputnik:license": "https://github.com/maputnik/osm-liberty/blob/gh-pages/LICENSE.md",
+        "maputnik:renderer": "mbgljs",
+        "openmaptiles:version": "3.x"
+    },
+    "sources": {
+        "gebco_polygon4osm": {
+            "type": "vector",
+            "tiles": [
+                "http://10.1.109.224:8213/data/ns/{z}/{x}/{y}.pbf"
+            ],
+            "minZoom": 0,
+            "maxZoom": 13
+        }
+    },
+    "layers": [
+        {
+            "id": "ns_white",
+            "type": "fill",
+            "source": "gebco_polygon4osm",
+            "source-layer": "ns",
+            "layout": {
+                "visibility": "visible"
+            },
+            "paint": {
+                "fill-color": "rgba(255, 255, 255, 1)"
+            }
+        }
+    ],
+    "id": "osm-liberty"
+}
