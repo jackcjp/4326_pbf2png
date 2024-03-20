@@ -75,7 +75,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                 const image = sharp(buffer, {
                     raw: {
                         width: params.width,
-                        height: params.width,
+                        height: params.height,
                         channels: 4
                     }
                 });
