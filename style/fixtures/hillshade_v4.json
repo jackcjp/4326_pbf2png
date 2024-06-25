@@ -1,0 +1,146 @@
+{
+  "version": 8,
+  "name": "OSM Liberty",
+  "metadata": {
+    "maputnik:license": "https://github.com/maputnik/osm-liberty/blob/gh-pages/LICENSE.md",
+    "maputnik:renderer": "mbgljs",
+    "openmaptiles:version": "3.x"
+  },
+  "sources": {
+    "test_vector": {
+      "type": "vector",
+      "url": "mbtiles://vector.mbtiles",
+      "minZoom": 0,
+      "maxZoom": 14
+    },
+    "shade": {
+      "type": "raster",
+      "url": "mbtiles://0-0-0_webp.mbtiles",
+      "minzoom": 0,
+      "maxzoom": 14
+    }
+  },
+  "layers": [
+    {
+      "id": "shade",
+      "type": "raster",
+      "source": "shade",
+      "layout": {"visibility": "visible"}
+    },
+    {
+      "id": "worldln-0136",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldln",
+      "filter": ["all", ["==", "KIND", "0136"]],
+      "layout": {
+        "visibility": "visible",
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#b4b4b4",
+        "line-dasharray": [2, 2],
+        "line-gap-width": 0,
+        "line-width": 1
+      }
+    },
+    {
+      "id": "worldln-013a",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldln",
+      "filter": ["all", ["==", "KIND", "013a"]],
+      "layout": {
+        "visibility": "visible",
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "rgba(180, 180, 180, 1)",
+        "line-dasharray": [3, 3],
+        "line-gap-width": 0,
+        "line-width": 1
+      }
+    },
+    {
+      "id": "worldln-0132",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldln",
+      "filter": ["all", ["==", "KIND", "0132"]],
+      "layout": {"visibility": "visible"},
+      "paint": {
+        "line-color": "#b4b4b4",
+        "line-dasharray": [2, 1],
+        "line-gap-width": 0,
+        "line-width": 1
+      }
+    },
+    {
+      "id": "worldln-0139",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldln",
+      "filter": ["all", ["==", "KIND", "0139"]],
+      "layout": {"visibility": "visible"},
+      "paint": {"line-color": "#b4b4b4", "line-width": 1}
+    },
+    {
+      "id": "worldln-0131",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldln",
+      "filter": ["all", ["==", "KIND", "0131"]],
+      "layout": {"visibility": "visible"},
+      "paint": {"line-color": "#b4b4b4"}
+    },
+    {
+      "id": "worldsealn",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "worldsealn",
+      "layout": {"visibility": "visible"},
+      "paint": {"line-color": "#b4b4b4"}
+    },
+    {
+      "id": "chinaln-shadow-0131",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "chinaln",
+      "filter": ["all", ["==", "KIND", "0131"]],
+      "layout": {
+        "visibility": "visible",
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-width": 3,
+        "line-blur": 2,
+        "line-color": "#b4b4b4",
+        "line-offset": -1
+      }
+    },
+    {
+      "id": "chinaln-shadow-013a",
+      "type": "line",
+      "source": "test_vector",
+      "source-layer": "chinaln",
+      "filter": ["all", ["==", "KIND", "013a"]],
+      "layout": {
+        "visibility": "none",
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#b4b4b4",
+        "line-dasharray": [2, 1],
+        "line-gap-width": 0,
+        "line-width": 3,
+        "line-blur": 2,
+        "line-offset": -1
+      }
+    }
+  ],
+  "id": "hillshade"
+}

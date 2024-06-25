@@ -6,3 +6,4 @@ sea1012_05_webp.mbtiles
 .git
 *.tar
 *.sqlite
+*.mbtiles

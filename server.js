@@ -1,9 +1,9 @@
 const fs = require('fs');
-const mbgl = require('@mapbox/mapbox-gl-native');
+const mbgl = require('@maplibre/maplibre-gl-native');
 const mercator = new (require('@mapbox/sphericalmercator'))();
 const sharp = require('sharp');
 const betterSqlite = require('better-sqlite3');
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 const path = require('path');
 const config = require('/data/change_color_and_format_config.json');
 const logPath = '/data/log.txt';
@@ -25,7 +25,7 @@ mbgl.on('message', function (err) {
     }
 });
 
-let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
+let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format = sharp.format.webp) {
     try {
         const options = {
             mode: "tile",
@@ -57,29 +57,30 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                 }
                 map.release();
 
-                // Fix semi-transparent outlines on raw, premultiplied input
-                // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
-                for (var i = 0; i < buffer.length; i += 4) {
-                    var alpha = buffer[i + 3];
-                    var norm = alpha / 255;
-                    if (alpha === 0) {
-                        buffer[i] = 0;
-                        buffer[i + 1] = 0;
-                        buffer[i + 2] = 0;
-                    } else {
-                        buffer[i] = buffer[i] / norm;
-                        buffer[i + 1] = buffer[i + 1] / norm;
-                        buffer[i + 2] = buffer[i + 2] / norm;
-                    }
-                }
+                // // Fix semi-transparent outlines on raw, premultiplied input
+                // // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
+                // for (var i = 0; i < buffer.length; i += 4) {
+                //     var alpha = buffer[i + 3];
+                //     var norm = alpha / 255;
+                //     if (alpha === 0) {
+                //         buffer[i] = 0;
+                //         buffer[i + 1] = 0;
+                //         buffer[i + 2] = 0;
+                //     } else {
+                //         buffer[i] = buffer[i] / norm;
+                //         buffer[i + 1] = buffer[i + 1] / norm;
+                //         buffer[i + 2] = buffer[i + 2] / norm;
+                //     }
+                // }
                 const image = sharp(buffer, {
                     raw: {
+                        premultiplied: true,
                         width: params.width,
                         height: params.height,
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
+                return image.resize(tileSize, tileSize).toFormat(format).toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
@@ -245,6 +246,7 @@ let readMbtiles = async function () {
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
     const proj = args['proj'];
+    const format = args['format'];
     const sqliteQueue = getFilelist(inputDirPath);
     // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
@@ -263,7 +265,9 @@ let readMbtiles = async function () {
                 console.log(`path ${metadataPath} not existed!`, metadataPath);
             }
         }
+        console.log('prepare outputDb ...');
         const outputDb = await createDb(metadataPath, inputDb, outputPath);
+        console.log('calculate pagination ...');
         const startTime = Date.now();
         const count = inputDb.prepare(`SELECT count(1) from tiles;`).pluck().get();
         const pageCount = Math.ceil(count / limit);
@@ -288,7 +292,7 @@ let readMbtiles = async function () {
                 const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
                 // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
                 console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
-                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
+                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data, format);
 
                 res.push(item);
             }

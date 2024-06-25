@@ -35,6 +35,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     如果inputDirPath是以sqlite结尾的,按sqlite处理且需要传outputDirPath.
 
     proj 默认是4326的，如果需要做3857的，就需要配置proj为3857
+    format 默认是webp，如果需要png，就需要配置format为png
 
     配置完成后把config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
 2. 通过命令行 (E.g.:'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1')

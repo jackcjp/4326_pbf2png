@@ -1,8 +1,8 @@
 const fs = require('fs')
 
-const mbgl = require('@mapbox/mapbox-gl-native');
+const mbgl = require('@maplibre/maplibre-gl-native');
 const sharp = require('sharp');
-const zlib = require('zlib');
+const zlib = require('node:zlib');
 const mercator = new (require('@mapbox/sphericalmercator'))();
 
 
@@ -23,18 +23,20 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 // const z = 5, x = 26, y = 12
 // const data = fs.readFileSync('/data/pbf/7_105_57.pbf')
 // let z = 7, x = 105, y = 57
-const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
-let z = 6, x = 27, y = 52
+// const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
+// let z = 6, x = 27, y = 52
+const data = fs.readFileSync('/data/pbf/2-1-0.pbf')
+let z = 2, x = 1, y = 0
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
 let topRightCorner = [-90.0, -180.0];
 
-
 const tileSize = 256,
     bearing = 0,
     pitch = 0,
-    ratio = 1;
+    ratio = 1
+scale = 1;
 
 
 const scaleDenominator_dic = {
@@ -75,7 +77,7 @@ let truncate_lnglat = function (lng, lat) {
     return [lng, lat];
 }
 
-let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
+let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format = 'webp') {
     try {
         const options = {
             mode: "tile",
@@ -89,7 +91,8 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         console.log('options', options);
         const map = new mbgl.Map(options);
         // map.load(require('/data/0-12-style-up.json'));
-        map.load(require('/data/style/fixtures/style_ns.json'));
+        // map.load(require('/data/style/fixtures/ns-style.json'));
+        map.load(require('/data/style/fixtures/hillshade_v4.json'));
 
         const params = {
             zoom: zoom,
@@ -109,29 +112,40 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                 }
                 map.release();
 
-                // Fix semi-transparent outlines on raw, premultiplied input
-                // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
-                for (var i = 0; i < buffer.length; i += 4) {
-                    var alpha = buffer[i + 3];
-                    var norm = alpha / 255;
-                    if (alpha === 0) {
-                        buffer[i] = 0;
-                        buffer[i + 1] = 0;
-                        buffer[i + 2] = 0;
-                    } else {
-                        buffer[i] = buffer[i] / norm;
-                        buffer[i + 1] = buffer[i + 1] / norm;
-                        buffer[i + 2] = buffer[i + 2] / norm;
-                    }
-                }
+                // // Fix semi-transparent outlines on raw, premultiplied input
+                // // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
+                // for (var i = 0; i < buffer.length; i += 4) {
+                //     var alpha = buffer[i + 3];
+                //     var norm = alpha / 255;
+                //     if (alpha === 0) {
+                //         buffer[i] = 0;
+                //         buffer[i + 1] = 0;
+                //         buffer[i + 2] = 0;
+                //     } else {
+                //         buffer[i] = buffer[i] / norm;
+                //         buffer[i + 1] = buffer[i + 1] / norm;
+                //         buffer[i + 2] = buffer[i + 2] / norm;
+                //     }
+                // }
                 const image = sharp(buffer, {
                     raw: {
-                        width: params.width,
-                        height: params.height,
+                        premultiplied: true,
+                        width: params.width * scale,
+                        height: params.height * scale,
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
+
+                image.resize(tileSize, tileSize);
+
+                if (format === 'png') {
+                    image.png({ adaptiveFiltering: false });
+                } else if (format === 'jpeg') {
+                    image.jpeg({ quality: 80 });
+                } else if (format === 'webp') {
+                    image.webp({ quality: 90 });
+                }
+                return image.toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
@@ -187,7 +201,7 @@ const aa = async (proj) => {
     // fs.writeFileSync('/data/100-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
-    fs.writeFileSync(`/data/${z}_${x}_${y}-out.webp`, tile_data.tile_data)
+    fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, tile_data.tile_data)
 
     console.log('finished')
 }
@@ -221,7 +235,7 @@ aa(3857);
 //     }
 //   },
 
-// xvfb-run -a -s '-screen 0 800x600x24' node pbf2png-one.js ./2-6-1.mbtiles
+// xvfb-run -a -s '-screen 0 1024x768x24' node pbf2png-one.js ./2-6-1.mbtiles
 
 
 // style.json与pbf  在4326和3857下有没有区别？

@@ -9,12 +9,14 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=10 <11"
+    "node": ">=10"
   },
   "dependencies": {
-    "@mapbox/mapbox-gl-native": "^5.0.2",
-    "@mapbox/sphericalmercator": "1.1.0",
-    "better-sqlite3": "^7.5.0",
-    "sharp": "0.26.2"
+    "@mapbox/sphericalmercator": "1.2.0",
+    "@maplibre/maplibre-gl-native": "5.4.0",
+    "advanced-pool":"0.3.3",
+    "better-sqlite3": "^11.0.0",
+    "node-mbtilesv123":"0.12.3",
+    "sharp": "0.33.4"
   }
 }
