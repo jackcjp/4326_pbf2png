@@ -1,6 +1,7 @@
 {
-    "inputDirPath":"/data/6-52-28_2.sqlite",
+    "inputDirPath":"/data/",
     "stylePath":"/data/style/fixtures/0-12-style-up.json",
     "outputDirPath":"/data/",
-    "proj": 3857
+    "proj": 3857,
+    "format":"png"
 }

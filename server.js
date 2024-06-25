@@ -5,6 +5,7 @@ const sharp = require('sharp');
 const betterSqlite = require('better-sqlite3');
 const zlib = require('node:zlib');
 const path = require('path');
+const render = require('./serve_render');
 const config = require('/data/change_color_and_format_config.json');
 const logPath = '/data/log.txt';
 
@@ -25,73 +26,6 @@ mbgl.on('message', function (err) {
     }
 });
 
-let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format = sharp.format.webp) {
-    try {
-        const options = {
-            mode: "tile",
-            request: function (req, callback) {
-                callback(null, { data: zlib.unzipSync(tileData) });
-            },
-            ratio
-        };
-        // console.log('options', options);
-        const map = new mbgl.Map(options);
-
-        const stylePath = args['stylePath'] || './style/fixtures/style.json';
-        map.load(require(stylePath));
-
-        const params = {
-            zoom: zoom,
-            center: [lon, lat],
-            bearing,
-            pitch,
-            width: tileSize * 2,
-            height: tileSize * 2
-        };
-
-        return new Promise((resolve, reject) => {
-            map.render(params, async function (error, buffer) {
-                if (error) {
-                    console.error(error);
-                    reject(error);
-                }
-                map.release();
-
-                // // Fix semi-transparent outlines on raw, premultiplied input
-                // // https://github.com/maptiler/tileserver-gl/issues/350#issuecomment-477857040
-                // for (var i = 0; i < buffer.length; i += 4) {
-                //     var alpha = buffer[i + 3];
-                //     var norm = alpha / 255;
-                //     if (alpha === 0) {
-                //         buffer[i] = 0;
-                //         buffer[i + 1] = 0;
-                //         buffer[i + 2] = 0;
-                //     } else {
-                //         buffer[i] = buffer[i] / norm;
-                //         buffer[i + 1] = buffer[i + 1] / norm;
-                //         buffer[i + 2] = buffer[i + 2] / norm;
-                //     }
-                // }
-                const image = sharp(buffer, {
-                    raw: {
-                        premultiplied: true,
-                        width: params.width,
-                        height: params.height,
-                        channels: 4
-                    }
-                });
-                return image.resize(tileSize, tileSize).toFormat(format).toBuffer()
-                    .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
-                    .catch(err => {
-                        console.err(err);
-                        reject(err);
-                    });
-            });
-        });
-    } catch (err) {
-        console.log('change color and format err:', err);
-    }
-}
 let connectDb = function (dbPath) {
     return betterSqlite(dbPath, /*{ verbose: console.log }*/);
 }
@@ -241,13 +175,17 @@ function getFilelist(inputPath) {
 }
 
 const args = config;
+const renderConfig = require('/data/config.json');
 let readMbtiles = async function () {
     console.log('args:', args);
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
     const proj = args['proj'];
     const format = args['format'];
-    const sqliteQueue = getFilelist(inputDirPath);
+    const id = 'vector';
+    const repo = render.repo;
+    await render.serve_render_add();
+    const sqliteQueue = [path.resolve(renderConfig.options.paths.mbtiles, renderConfig.data[id].mbtiles)];
     // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
@@ -276,11 +214,11 @@ let readMbtiles = async function () {
         let overBoundCount = 0;
         for (let i = 0; i < pageCount; i++) {
             const offset = i * limit;
-            const data = inputDb.prepare(`SELECT * from tiles limit ${limit} offset ${offset};`).all();
+            const data = inputDb.prepare(`SELECT zoom_level as z, tile_column as x, tile_row as y from tiles limit ${limit} offset ${offset};`).all();
             console.log('progress: ', offset, '-', offset + data.length);
             let res = [];
             for (let item of data) {
-                let z = item.zoom_level, x = item.tile_column, y = item.tile_row, tile_data = item.tile_data;
+                let { z, x, y } = item;
                 // 3857的需要对y做翻转
                 if (proj === 3857) {
                     y = 2 ** z - 1 - y;
@@ -290,9 +228,10 @@ let readMbtiles = async function () {
                     continue;
                 }
                 const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
-                // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
                 console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
-                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data, format);
+                tileCenter[0] = parseFloat(tileCenter[0].toFixed(20));
+                tileCenter[1] = parseFloat(tileCenter[1].toFixed(20));
+                item = await render.renderImage(z, x, y, tileCenter, format, tileSize, scale);
 
                 res.push(item);
             }
@@ -314,6 +253,9 @@ let readMbtiles = async function () {
         console.log('Finshed! Total time cost:', (Date.now() - startTime) / 1000 / 60);
         fs.appendFileSync(logPath, 'No. ' + (sqliteQueue.indexOf(inputPath) + 1) + ' ' + new Date().toLocaleString() + ' ' + outputPath + '\n');
     }
+
+    console.log('finished')
+    render.serve_render_remove(repo, id);
 }
 
 readMbtiles()
@@ -322,5 +264,5 @@ readMbtiles()
 // sudo apt-get update && sudo apt-get install xvfb && npm install
 // EGL_LOG_LEVEL=debug
 // output: /input/db/path_png.mbtiles located at the same path
-// xvfb-run -a -s '-screen 0 800x600x24' node server.js /input/db/path
-// e.g.: xvfb-run -a -s '-screen 0 800x600x24' node server.js ./2-6-1.mbtiles
+// xvfb-run -a -s '-screen 0 1024x768x24' node server.js
+// e.g.: xvfb-run -a -s '-screen 0 1024x768x24' node server.js

@@ -1,0 +1,31 @@
+{
+    "options": {
+        "paths": {
+            "root": "/data/resources",
+            "fonts": "fonts",
+            "styles": "styles",
+            "mbtiles": "/data"
+        }
+    },
+    "styles": {
+        "vector": {
+            "style": "fixtures/hillshade_v4.json",
+            "tilejson": {
+                "bounds": [
+                    -180,
+                    -80,
+                    180,
+                    80
+                ]
+            }
+        }
+    },
+    "data": {
+        "vector": {
+            "mbtiles": "vector.mbtiles"
+        },
+        "raster": {
+            "mbtiles": "0-0-0_webp.mbtiles"
+        }
+    }
+}

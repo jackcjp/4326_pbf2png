@@ -22,79 +22,52 @@ const isValidHttpUrl = (string) => {
 
     return url.protocol === 'http:' || url.protocol === 'https:';
 };
-const config = {
-    "options": {
-        "paths": {
-            "root": "/data/resources",
-            "fonts": "fonts",
-            "styles": "styles",
-            "mbtiles": "/data"
-        }
-    },
-    "styles": {
-        "vector": {
-            "style": "vector/hillshade_v4_mbtiles.json",
-            "tilejson": {
-                "bounds": [
-                    -180,
-                    -80,
-                    180,
-                    80
-                ]
-            }
-        }
-    },
-    "data": {
-        "vector": {
-            "mbtiles": "vector.mbtiles"
-        },
-        "raster": {
-            "mbtiles": "0-0-0_webp.mbtiles"
-        }
-    }
-}
+const config = require('/data/config.json');
 const data = config.data;
-async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
-    const map = {
-        renderers: [],
-        renderersStatic: [],
-        sources: {},
-        sourceTypes: {},
-    };
-    const options = {
-        paths: {
-            root: '/data/resources',
-            fonts: '/data/resources/fonts',
-            styles: '/data/style',
-            mbtiles: '/data',
-            sprites: '/data/resources',
-            pmtiles: '/data/resources',
-            icons: '/data/resources'
-        }
-    }, repo = {}, params = {
-        style: 'fixtures/hillshade_v4.json',
-        tilejson: { bounds: [-180, -80, 180, 80] }
-    }, id = 'vector', publicUrl = undefined
-        , dataResolver = function (styleSourceId) {
-            let fileType;
-            let inputFile;
-            for (const id of Object.keys(data)) {
-                fileType = Object.keys(data[id])[0];
-                if (styleSourceId == id) {
-                    inputFile = data[id][fileType];
-                    break;
-                } else if (data[id][fileType] == styleSourceId) {
-                    inputFile = data[id][fileType];
-                    break;
-                }
-            }
-            if (!isValidHttpUrl(inputFile)) {
-                inputFile = path.resolve(options.paths[fileType], inputFile);
-            }
-            return { inputFile, fileType };
-        }
-    // console.log(options, repo, params, id, publicUrl, dataResolver, '555555555555555555555')
 
+const map = {
+    renderers: [],
+    renderersStatic: [],
+    sources: {},
+    sourceTypes: {},
+};
+let repoobj = {};
+const options = {
+    paths: {
+        root: '/data/resources',
+        fonts: '/data/resources/fonts',
+        styles: '/data/style',
+        mbtiles: '/data',
+        sprites: '/data/resources',
+        pmtiles: '/data/resources',
+        icons: '/data/resources'
+    }
+}, id = 'vector', params = {
+    style: config.styles[id].style,
+    tilejson: { bounds: [-180, -80, 180, 80] }
+}, publicUrl = undefined
+    , dataResolver = function (styleSourceId) {
+        let fileType;
+        let inputFile;
+        for (const id of Object.keys(data)) {
+            fileType = Object.keys(data[id])[0];
+            if (styleSourceId == id) {
+                inputFile = data[id][fileType];
+                break;
+            } else if (data[id][fileType] == styleSourceId) {
+                inputFile = data[id][fileType];
+                break;
+            }
+        }
+        if (!isValidHttpUrl(inputFile)) {
+            inputFile = path.resolve(options.paths[fileType], inputFile);
+        }
+        return { inputFile, fileType };
+    }
+
+console.log('options:', options, 'params:', params, 'id:', id)
+
+const serve_render_add = async () => {
     let styleJSON;
 
     const styleFile = params.style;
@@ -152,7 +125,7 @@ async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
 
     fixTileJSONCenter(tileJSON);
 
-    const repoobj = {
+    repoobj = {
         tileJSON,
         publicUrl,
         map,
@@ -163,7 +136,7 @@ async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
             params.staticAttributionText || options.staticAttributionText,
     };
 
-    const item = repoobj;
+    // const item = repoobj;
 
     const queue = [];
     for (const name of Object.keys(styleJSON.sources)) {
@@ -188,7 +161,7 @@ async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
             }
 
             let inputFile;
-            console.log('dataId', dataId)
+            // console.log('dataId', dataId)
             const dataInfo = dataResolver(dataId);
             if (dataInfo.inputFile) {
                 inputFile = dataInfo.inputFile;
@@ -302,37 +275,6 @@ async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
     }
 
     await Promise.all(queue);
-    // const z = req.params.z | 0;
-    // const x = req.params.x | 0;
-    // const y = req.params.y | 0;
-    // const format = req.params.format
-    // const z = 3;
-    // const x = 6;
-    // const y = 3;
-
-    // const scale = 1;
-    // const format = 'png';
-    // const tileSize = parseInt(req.params.tileSize, 10) || 256;
-    // const tileSize = 256;
-
-    if (
-        z < 0 ||
-        x < 0 ||
-        y < 0 ||
-        z > 22 ||
-        x >= Math.pow(2, z) ||
-        y >= Math.pow(2, z)
-    ) {
-        console.error('Out of bounds', z, x, y)
-    }
-
-    const tileCenter = mercator.ll(
-        [
-            ((x + 0.5) / (1 << z)) * (256 << z),
-            ((y + 0.5) / (1 << z)) * (256 << z),
-        ],
-        z,
-    );
 
     let maxScaleFactor = 2;
 
@@ -522,182 +464,223 @@ async function renderImage(z, x, y, format = 'png', tileSize = 512, scale = 1) {
         );
     }
 
-    const renderingImage = (
-        options,
-        item,
-        z,
-        lon,
-        lat,
-        bearing,
-        pitch,
-        width,
-        height,
-        scale,
-        format,
-        overlay = null,
-        mode = 'tile',
-    ) => {
-        if (
-            Math.abs(lon) > 180 ||
-            Math.abs(lat) > 85.06 ||
-            lon !== lon ||
-            lat !== lat
-        ) {
-            console.error('Invalid center', lon, lat);
-        }
+}
 
-        if (
-            Math.min(width, height) <= 0 ||
-            Math.max(width, height) * scale > (options.maxSize || 2048) ||
-            width !== width ||
-            height !== height
-        ) {
-            console.error('Invalid size', width, height);
-        }
+const serve_render_remove = (repo, id) => {
+    const item = repo[id];
+    if (item) {
+        item.map.renderers.forEach((pool) => {
+            pool.close();
+        });
+        item.map.renderersStatic.forEach((pool) => {
+            pool.close();
+        });
+    }
+    delete repo[id];
+    process.exit();
+}
 
-        if (format === 'png' || format === 'webp') {
-        } else if (format === 'jpg' || format === 'jpeg') {
-            format = 'jpeg';
-        } else {
-            console.error('Invalid format', format);
-        }
+const renderingImage = async (
+    options,
+    item,
+    z, x, y,
+    lon,
+    lat,
+    bearing,
+    pitch,
+    width,
+    height,
+    scale,
+    format,
+    overlay = null,
+    mode = 'tile',
+) => {
+    if (
+        Math.abs(lon) > 180 ||
+        Math.abs(lat) > 85.06 ||
+        lon !== lon ||
+        lat !== lat
+    ) {
+        console.error('Invalid center', lon, lat);
+    }
 
-        const tileMargin = Math.max(options.tileMargin || 0, 0);
-        let pool;
-        if (mode === 'tile' && tileMargin === 0) {
-            pool = item.map.renderers[scale];
-        } else {
-            pool = item.map.renderersStatic[scale];
-        }
+    if (
+        Math.min(width, height) <= 0 ||
+        Math.max(width, height) * scale > (options.maxSize || 2048) ||
+        width !== width ||
+        height !== height
+    ) {
+        console.error('Invalid size', width, height);
+    }
 
-        return new Promise((resolve, reject) => {
-            pool.acquire((err, renderer) => {
-                // For 512px tiles, use the actual maplibre-native zoom. For 256px tiles, use zoom - 1
-                let mlglZ;
-                if (width === 512) {
-                    mlglZ = Math.max(0, z);
-                } else {
-                    mlglZ = Math.max(0, z - 1);
+    if (format === 'png' || format === 'webp') {
+    } else if (format === 'jpg' || format === 'jpeg') {
+        format = 'jpeg';
+    } else {
+        console.error('Invalid format', format);
+    }
+
+    const tileMargin = Math.max(options.tileMargin || 0, 0);
+    let pool;
+    if (mode === 'tile' && tileMargin === 0) {
+        pool = item.map.renderers[scale];
+    } else {
+        pool = item.map.renderersStatic[scale];
+    }
+
+    return new Promise((resolve, reject) => {
+        pool.acquire((err, renderer) => {
+            // For 512px tiles, use the actual maplibre-native zoom. For 256px tiles, use zoom - 1
+            let mlglZ;
+            if (width === 512) {
+                mlglZ = Math.max(0, z);
+            } else {
+                mlglZ = Math.max(0, z - 1);
+            }
+
+            const params = {
+                zoom: mlglZ,
+                center: [lon, lat],
+                bearing,
+                pitch,
+                width,
+                height,
+            };
+
+            // HACK(Part 1) 256px tiles are a zoom level lower than maplibre-native default tiles. this hack allows tileserver-gl to support zoom 0 256px tiles, which would actually be zoom -1 in maplibre-native. Since zoom -1 isn't supported, a double sized zoom 0 tile is requested and resized in Part 2.
+            if (z === 0 && width === 256) {
+                params.width *= 2;
+                params.height *= 2;
+            }
+            // END HACK(Part 1)
+
+            if (z > 0 && tileMargin > 0) {
+                params.width += tileMargin * 2;
+                params.height += tileMargin * 2;
+            }
+            renderer.render(params, (err, data) => {
+                pool.release(renderer);
+                if (err) {
+                    console.error(err, 'renderer.render error!');
                 }
 
-                const params = {
-                    zoom: mlglZ,
-                    center: [lon, lat],
-                    bearing,
-                    pitch,
-                    width,
-                    height,
-                };
-
-                // HACK(Part 1) 256px tiles are a zoom level lower than maplibre-native default tiles. this hack allows tileserver-gl to support zoom 0 256px tiles, which would actually be zoom -1 in maplibre-native. Since zoom -1 isn't supported, a double sized zoom 0 tile is requested and resized in Part 2.
-                if (z === 0 && width === 256) {
-                    params.width *= 2;
-                    params.height *= 2;
-                }
-                // END HACK(Part 1)
-
-                if (z > 0 && tileMargin > 0) {
-                    params.width += tileMargin * 2;
-                    params.height += tileMargin * 2;
-                }
-                renderer.render(params, (err, data) => {
-                    pool.release(renderer);
-                    if (err) {
-                        console.error(err, 'renderer.render error!');
-                    }
-
-                    const image = sharp(data, {
-                        raw: {
-                            premultiplied: true,
-                            width: params.width * scale,
-                            height: params.height * scale,
-                            channels: 4,
-                        },
-                    });
-
-                    image.toFile('/data/image_test0.png', function (err) {
-                        console.log('666666666666_image_test.png')
-                        if (err) throw err;
-                    });
-                    if (z > 0 && tileMargin > 0) {
-                        const y = mercator.px(params.center, z)[1];
-                        const yoffset = Math.max(
-                            Math.min(0, y - 128 - tileMargin),
-                            y + 128 + tileMargin - Math.pow(2, z + 8),
-                        );
-                        image.extract({
-                            left: tileMargin * scale,
-                            top: (tileMargin + yoffset) * scale,
-                            width: width * scale,
-                            height: height * scale,
-                        });
-                    }
-
-                    // HACK(Part 2) 256px tiles are a zoom level lower than maplibre-native default tiles. this hack allows tileserver-gl to support zoom 0 256px tiles, which would actually be zoom -1 in maplibre-native. Since zoom -1 isn't supported, a double sized zoom 0 tile is requested and resized here.
-                    if (z === 0 && width === 256) {
-                        image.resize(width * scale, height * scale);
-                    }
-                    // END HACK(Part 2)
-
-                    const composites = [];
-                    // console.log('overlay________', overlay)
-                    if (overlay) {
-                        composites.push({ input: overlay });
-                    }
-                    if (item.watermark) {
-                        const canvas = renderWatermark(width, height, scale, item.watermark);
-
-                        composites.push({ input: canvas.toBuffer() });
-                    }
-
-                    if (mode === 'static' && item.staticAttributionText) {
-                        const canvas = renderAttribution(
-                            width,
-                            height,
-                            scale,
-                            item.staticAttributionText,
-                        );
-
-                        composites.push({ input: canvas.toBuffer() });
-                    }
-
-                    if (composites.length > 0) {
-                        image.composite(composites);
-                    }
-
-                    const formatQuality = (options.formatQuality || {})[format];
-                    // console.log('formatQuality___________', formatQuality)
-
-                    if (format === 'png') {
-                        image.png({ adaptiveFiltering: false });
-                    } else if (format === 'jpeg') {
-                        image.jpeg({ quality: formatQuality || 80 });
-                    } else if (format === 'webp') {
-                        image.webp({ quality: formatQuality || 90 });
-                    }
-                    // image.toBuffer((err, buffer, info) => {
-                    //     if (!buffer) {
-                    //         console.error(err, 'image.toBuffer error: Not found!');
-                    //     }
-                    //     return fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, buffer)
-                    // });
-                    
-                    return image.toBuffer()
-                        .then(data => { resolve({ 'zoom_level': z, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
-                        .catch(err => {
-                            console.err(err);
-                            reject(err);
-                        });
+                const image = sharp(data, {
+                    raw: {
+                        premultiplied: true,
+                        width: params.width * scale,
+                        height: params.height * scale,
+                        channels: 4,
+                    },
                 });
+
+                // image.toFile('/data/image_test0.png', function (err) {
+                //     console.log('666666666666_image_test.png')
+                //     if (err) throw err;
+                // });
+                if (z > 0 && tileMargin > 0) {
+                    const y = mercator.px(params.center, z)[1];
+                    const yoffset = Math.max(
+                        Math.min(0, y - 128 - tileMargin),
+                        y + 128 + tileMargin - Math.pow(2, z + 8),
+                    );
+                    image.extract({
+                        left: tileMargin * scale,
+                        top: (tileMargin + yoffset) * scale,
+                        width: width * scale,
+                        height: height * scale,
+                    });
+                }
+
+                // HACK(Part 2) 256px tiles are a zoom level lower than maplibre-native default tiles. this hack allows tileserver-gl to support zoom 0 256px tiles, which would actually be zoom -1 in maplibre-native. Since zoom -1 isn't supported, a double sized zoom 0 tile is requested and resized here.
+                if (z === 0 && width === 256) {
+                    image.resize(width * scale, height * scale);
+                }
+                // END HACK(Part 2)
+
+                const composites = [];
+                // console.log('overlay________', overlay)
+                if (overlay) {
+                    composites.push({ input: overlay });
+                }
+                if (item.watermark) {
+                    const canvas = renderWatermark(width, height, scale, item.watermark);
+
+                    composites.push({ input: canvas.toBuffer() });
+                }
+
+                if (mode === 'static' && item.staticAttributionText) {
+                    const canvas = renderAttribution(
+                        width,
+                        height,
+                        scale,
+                        item.staticAttributionText,
+                    );
+
+                    composites.push({ input: canvas.toBuffer() });
+                }
+
+                if (composites.length > 0) {
+                    image.composite(composites);
+                }
+
+                const formatQuality = (options.formatQuality || {})[format];
+                // console.log('formatQuality___________', formatQuality)
+
+                if (format === 'png') {
+                    image.png({ adaptiveFiltering: false });
+                } else if (format === 'jpeg') {
+                    image.jpeg({ quality: formatQuality || 80 });
+                } else if (format === 'webp') {
+                    image.webp({ quality: formatQuality || 90 });
+                }
+                // image.toBuffer((err, buffer, info) => {
+                //     if (!buffer) {
+                //         console.error(err, 'image.toBuffer error: Not found!');
+                //     }
+                //     return fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, buffer)
+                // });
+
+                return image.toBuffer()
+                    .then(data => { resolve({ 'zoom_level': z, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
+                    .catch(err => {
+                        // console.err(err);
+                        reject(err);
+                    });
             });
         });
-    };
-    console.log('renderingImage___________', z, x, y)
+    });
+};
+
+
+async function renderImage(z, x, y, tileCenter, format = 'png', tileSize = 512, scale = 1) {
+    if (
+        z < 0 ||
+        x < 0 ||
+        y < 0 ||
+        z > 22 ||
+        x >= Math.pow(2, z) ||
+        y >= Math.pow(2, z)
+    ) {
+        console.error('Out of bounds', z, x, y)
+    }
+
     // prettier-ignore
-    renderingImage(
-        options, item, z, tileCenter[0], tileCenter[1], 0, 0, tileSize, tileSize, scale, format
+    return renderingImage(
+        options, repoobj, z, x, y, tileCenter[0], tileCenter[1], 0, 0, tileSize, tileSize, scale, format
     );
 }
-renderImage(3, 6, 3, 'webp');
 
-// xvfb-run -a -s '-screen 0 800x600x24' node new-pbf2webp-one.js
+module.exports = {
+    serve_render_add,
+    serve_render_remove,
+    renderImage,
+    repo: repoobj
+}
+
+// const aa =  async() => {
+//     await serve_render_add()
+//     return await renderImage(3, 6, 3, 'webp');
+// }
+// console.log(aa)
+
+// xvfb-run -a -s '-screen 0 1024x768x24' node new-pbf2webp-one.js

@@ -4,7 +4,7 @@ const mbgl = require('@maplibre/maplibre-gl-native');
 const sharp = require('sharp');
 const zlib = require('node:zlib');
 const mercator = new (require('@mapbox/sphericalmercator'))();
-
+const render = require('./serve_render');
 
 // 4326 test
 // const data = fs.readFileSync('168.pbf')
@@ -25,8 +25,8 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 // let z = 7, x = 105, y = 57
 // const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
 // let z = 6, x = 27, y = 52
-const data = fs.readFileSync('/data/pbf/2-1-0.pbf')
-let z = 2, x = 1, y = 0
+// const data = fs.readFileSync('/data/pbf/2-1-0.pbf')
+let z = 3, x = 6, y = 3
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
@@ -185,14 +185,18 @@ const mercatorCenter = function (z, x, y) {
 }
 
 const aa = async (proj) => {
-    y = 2 ** z - 1 - y;
+    const repo = render.repo;
+    await render.serve_render_add();
+    // y = 2 ** z - 1 - y;
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     // console.log('bbbbbb', tileCenter)
     // console.log('bbbbbb22222222', data)
     console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter);
     console.log('z', z, 'x', x, 'y', y, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
-
-    const tile_data = await changeColorAndFormat(z, x, y, parseFloat(tileCenter[0].toFixed(20)), parseFloat(tileCenter[1].toFixed(20)), data);
+    tileCenter[0] = parseFloat(tileCenter[0].toFixed(20));
+    tileCenter[1] = parseFloat(tileCenter[1].toFixed(20));
+    // const tile_data = await changeColorAndFormat(z, x, y, parseFloat(tileCenter[0].toFixed(20)), parseFloat(tileCenter[1].toFixed(20)), data);
+    const tile_data = await render.renderImage(z, x, y, tileCenter, 'png', 256);
 
     console.log('tile_data', tile_data);
 
@@ -202,11 +206,11 @@ const aa = async (proj) => {
     // fs.writeFileSync('/data/6_53_24-out.png', tile_data.tile_data)
     // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
     fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, tile_data.tile_data)
-
     console.log('finished')
+    render.serve_render_remove(repo, 'vector');
 }
 // aa();
-aa(3857);
+aa(3857, 3, 6, 3);
 
 // 配置sources有两种可用的方案
 
@@ -225,7 +229,7 @@ aa(3857);
 // 方案二 也可参考官方案例，具体配置见 [https://github.com/mapbox/mapbox-gl-native/blob/f2778251c97ba3403582b9c04290c50f927fd338/platform/node/test/fixtures/style.json#L8-L10]
 // 若要按官方配置需要把tiles/0-0-0.vector.pbf放到style/fixtures/下面
 
-// mbtiles暂不可用（报错Invalid value. at offset 0，官方文档[https://github.com/mapbox/mapbox-gl-native/blob/f2778251c97ba3403582b9c04290c50f927fd338/platform/node/README.md]提供的也是上面tiles这种形式）
+// mbtiles（官方文档[https://github.com/mapbox/mapbox-gl-native/blob/f2778251c97ba3403582b9c04290c50f927fd338/platform/node/README.md]提供的也是上面tiles这种形式）
 // "sources": {
 //     "gebco_polygon4osm": {
 //       "type": "vector",
