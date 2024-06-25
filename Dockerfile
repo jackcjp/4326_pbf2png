@@ -1,6 +1,7 @@
 FROM node:10-buster AS builder
 
 RUN export DEBIAN_FRONTEND=noninteractive \
+  && sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' /etc/apt/sources.list \
   && apt-get -qq update \
   && apt-get -y --no-install-recommends install \
       apt-transport-https \
@@ -29,6 +30,7 @@ RUN npm rebuild --verbose sharp
 FROM node:10-buster-slim AS final
 
 RUN export DEBIAN_FRONTEND=noninteractive \
+  && sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' /etc/apt/sources.list \
   && apt-get -qq update \
   && apt-get -y --no-install-recommends install \
       libgles2-mesa \

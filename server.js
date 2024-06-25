@@ -25,7 +25,7 @@ mbgl.on('message', function (err) {
     }
 });
 
-let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
+let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format) {
     try {
         const options = {
             mode: "tile",
@@ -79,7 +79,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
+                return image.resize(tileSize, tileSize).toFormat(format).toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
@@ -245,11 +245,12 @@ let readMbtiles = async function () {
     const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
     const proj = args['proj'];
+    const format = args['format'] || "webp";
     const sqliteQueue = getFilelist(inputDirPath);
     // const sqliteQueue = ['/data/0-8.mbtiles'];
     console.log('sqliteQueue:', sqliteQueue);
     for (let inputPath of sqliteQueue) {
-        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_webp' + '.mbtiles';
+        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + `_${format}` + '.mbtiles';
         outputPath = args['outputDirPath'] ? path.resolve(args['outputDirPath'], outputPath) : path.resolve(args['inputDirPath'], outputPath);
         console.log('No.', sqliteQueue.indexOf(inputPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
@@ -288,7 +289,7 @@ let readMbtiles = async function () {
                 const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
                 // console.log('z',z,'x', x, 'y',y, 'topRightCorner',topRightCorner,'tileCenter', tileCenter);
                 console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
-                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data);
+                item = changeColorAndFormat(z, x, y, tileCenter[0].toFixed(20), tileCenter[1].toFixed(20), tile_data, format);
 
                 res.push(item);
             }

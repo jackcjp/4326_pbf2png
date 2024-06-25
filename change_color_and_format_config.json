@@ -1,6 +1,7 @@
 {
-    "inputDirPath":"/data/6-52-28_2.sqlite",
-    "stylePath":"/data/0-12-style-up.json",
+    "inputDirPath":"/data/vector.mbtiles",
+    "stylePath":"/data/style.json",
     "outputDirPath":"/data/",
-    "proj": 3857
+    "proj": 3857,
+    "format":"png"
 }

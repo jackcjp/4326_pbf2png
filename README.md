@@ -20,6 +20,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     The outputDirPath is needed if the inputDirPath is a sqlite file.
 
     The default projection is 4326. You need to add "proj":3857 into config.json if you want mercator(3857).
+    format defalut webp， you can add "format":"png" in config.json if you want png format. support webp and png, jpeg.
 
 2. Run a docker container to remove over bound tiles, add color, change format with the command above; 
     NOTE: pay attention to container name and port when running more than one instance.
@@ -35,6 +36,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     如果inputDirPath是以sqlite结尾的,按sqlite处理且需要传outputDirPath.
 
     proj 默认是4326的，如果需要做3857的，就需要配置proj为3857
+    format 默认是 webp， 如果想要其他格式请在config.json中添加 "format":"png"，支持 webp, png and jpeg.
 
     配置完成后把config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
 2. 通过命令行 (E.g.:'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1')

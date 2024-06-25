@@ -23,8 +23,8 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 // const z = 5, x = 26, y = 12
 // const data = fs.readFileSync('/data/pbf/7_105_57.pbf')
 // let z = 7, x = 105, y = 57
-const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
-let z = 6, x = 27, y = 52
+const data = fs.readFileSync('/data/pbf/1-0-1.pbf')
+let z = 1, x = 0, y = 1
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
@@ -89,7 +89,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
         console.log('options', options);
         const map = new mbgl.Map(options);
         // map.load(require('/data/0-12-style-up.json'));
-        map.load(require('/data/style/fixtures/style_ns.json'));
+        map.load(require('/data/style.json'));
 
         const params = {
             zoom: zoom,
@@ -131,7 +131,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData) {
                         channels: 4
                     }
                 });
-                return image.resize(tileSize, tileSize).toFormat(sharp.format.webp).toBuffer()
+                return image.resize(tileSize, tileSize).toFormat(sharp.format.png).toBuffer()
                     .then(data => { resolve({ 'zoom_level': zoom, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         console.err(err);
