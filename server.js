@@ -174,6 +174,29 @@ function getFilelist(inputPath) {
     return sqliteQueue;
 }
 
+function getCount(vectorPath, rasterPath) {
+    return connectDb(vectorPath).exec(`attch ${rasterPath} as raster`).prepare(`
+        SELECT count(1) from (
+            select zoom_level, tile_column, tile_row from tiles
+            union select zoom_level, tile_column, tile_row from raster.tiles
+        );`).pluck().get();
+}
+
+function fetchTile(vectorPath, rasterPath) {
+    const db = connectDb(vectorPath);
+    db.exec(`attch ${rasterPath} as raster`);
+    return db.prepare(`
+        SELECT zoom_level, tile_column, tile_row, src_tile_data, tar_tile_data FROM ( 
+            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row, a.tile_data src_tile_data, b.tile_data tar_tile_data FROM tiles a
+                LEFT JOIN tar_mb.tiles b ON 
+                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level= ? 
+            UNION
+            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row, b.tile_data src_tile_data, a.tile_data tar_tile_data FROM tar_mb.tiles a
+                LEFT JOIN tiles b ON 
+                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level= ?
+        ) ORDER BY zoom_level, tile_column, tile_row, src_tile_data, tar_tile_data LIMIT ? OFFSET ?;`).all();
+}
+
 const args = config;
 const renderConfig = require('/data/config.json');
 let readMbtiles = async function () {
