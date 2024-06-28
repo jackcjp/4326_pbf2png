@@ -14,9 +14,11 @@
   "dependencies": {
     "@mapbox/sphericalmercator": "1.2.0",
     "@maplibre/maplibre-gl-native": "5.4.0",
-    "advanced-pool":"0.3.3",
+    "advanced-pool": "^0.3.3",
+    "axios": "^1.7.2",
     "better-sqlite3": "^11.0.0",
-    "node-mbtilesv123":"0.12.3",
+    "canvas": "^2.11.2",
+    "node-mbtilesv123": "^0.12.3",
     "sharp": "0.33.4"
   }
 }

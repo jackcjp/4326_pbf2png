@@ -1,7 +1,35 @@
 {
-    "inputDirPath":"/data/",
-    "stylePath":"/data/style/fixtures/0-12-style-up.json",
-    "outputDirPath":"/data/",
-    "proj": 3857,
-    "format":"png"
+    "options": {
+        "paths": {
+            "styles": "/data/style",
+            "mbtiles": "/data",
+            "output": "/data/test/output"
+        },
+        "proj": 3857,
+        "format": "png",
+        "tileSize": 512,
+        "resize": 256,
+        "scale": 1
+    },
+    "styles": {
+        "vector": {
+            "style": "hillshade_v4.json",
+            "tilejson": {
+                "bounds": [
+                    -180,
+                    -80,
+                    180,
+                    80
+                ]
+            }
+        }
+    },
+    "data": {
+        "vector": {
+            "mbtiles": "test/vector/vector.mbtiles"
+        },
+        "raster": {
+            "mbtiles": "test/raster/0-0-0_webp.mbtiles"
+        }
+    }
 }

@@ -1,20 +1,15 @@
 const fs = require('fs');
 const mbgl = require('@maplibre/maplibre-gl-native');
 const mercator = new (require('@mapbox/sphericalmercator'))();
-const sharp = require('sharp');
 const betterSqlite = require('better-sqlite3');
-const zlib = require('node:zlib');
 const path = require('path');
 const render = require('./serve_render');
 const config = require('/data/change_color_and_format_config.json');
 const logPath = '/data/log.txt';
 
 const limit = 1000;
-const tileSize = 256,
-    scale = 1,
-    bearing = 0,
-    pitch = 0,
-    ratio = 1;
+const tileSize = config['tileSize'] || 512,
+    scale = config['scale'] || 1;
 let topRightCorner = [-90.0, -180.0];
 let sourceZoom = 2;
 let targetZoom = 10;  // E.g. Here cut level 10 tiles by level 2 grid
@@ -26,7 +21,12 @@ mbgl.on('message', function (err) {
     }
 });
 
-let connectDb = function (dbPath) {
+let connectDb = function (dbPath, attachPath) {
+    if (attachPath) {
+        const db = betterSqlite(dbPath, /*{ verbose: console.log }*/);
+        db.prepare('ATTACH DATABASE ? AS raster').run(attachPath);
+        return db;
+    }
     return betterSqlite(dbPath, /*{ verbose: console.log }*/);
 }
 
@@ -110,7 +110,7 @@ let ul = function (z, x, y, curCorner) {
     let lat = origin_y - y * res * tileSize;
     return [lon, lat];
 }
-
+// proj: 4326
 let calCenter = function (z, x, y) {
     let lt = ul(z, x, y);
     let left = lt[0], top = lt[1];
@@ -121,7 +121,7 @@ let calCenter = function (z, x, y) {
     let center = ul(z, x, y, curCorner);
     return truncate_lnglat.apply(null, center);
 }
-
+// proj: 3857
 const mercatorCenter = function (z, x, y) {
     return mercator.ll([
         ((x + 0.5) / (1 << z)) * (256 << z),
@@ -153,14 +153,14 @@ function isOverBound(inputPath, z, x, y, args) {
 }
 
 function getFilelist(inputPath) {
-    let sqliteQueue = [];
+    let sqliteQueue = [], isDir = true;
     const loopThroughtDir = (inputPath) => {
         const filelist = fs.readdirSync(inputPath);
         for (let file of filelist) {
             if (fs.lstatSync(path.resolve(inputPath, file)).isDirectory()) {
                 loopThroughtDir(path.resolve(inputPath, file));
             } else {
-                if (file.endsWith('.sqlite')) {
+                if (file.endsWith('.sqlite') || file.endsWith('.mbtiles')) {
                     sqliteQueue.push(path.resolve(inputPath, file));
                 }
             }
@@ -168,76 +168,178 @@ function getFilelist(inputPath) {
     };
     if (inputPath.endsWith('sqlite') || inputPath.endsWith('mbtiles')) {
         sqliteQueue = [`${inputPath}`]
+        isDir = false;
     } else {
         loopThroughtDir(inputPath);
     }
-    return sqliteQueue;
+    return { sqliteQueue, isDir };
 }
 
-function getCount(vectorPath, rasterPath) {
-    return connectDb(vectorPath).exec(`attch ${rasterPath} as raster`).prepare(`
-        SELECT count(1) from (
-            select zoom_level, tile_column, tile_row from tiles
-            union select zoom_level, tile_column, tile_row from raster.tiles
-        );`).pluck().get();
+function getCount(db, attached) {
+    if (attached) {
+        return db.prepare(`
+            SELECT count(1) from (
+                select zoom_level, tile_column, tile_row from tiles
+                union select zoom_level, tile_column, tile_row from raster.tiles
+            );`).pluck().get();
+    }
+    return db.prepare(`SELECT count(1) from tiles;`).pluck().get();
 }
 
-function fetchTile(vectorPath, rasterPath) {
-    const db = connectDb(vectorPath);
-    db.exec(`attch ${rasterPath} as raster`);
+function fetchTile(db, pagination, attached) {
+    if (attached) {
+        return db.prepare(`
+            SELECT zoom_level z, tile_column x, tile_row y FROM ( 
+                SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM tiles a
+                    LEFT JOIN raster.tiles b ON 
+                    b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row
+                UNION
+                SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM raster.tiles a
+                    LEFT JOIN tiles b ON 
+                    b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row
+            ) ORDER BY zoom_level, tile_column, tile_row  LIMIT ${pagination['limit']} OFFSET ${pagination['offset']};`).all();
+    }
+    return db.prepare(`SELECT zoom_level as z, tile_column as x, tile_row as y from tiles limit ${pagination['limit']} offset ${pagination['offset']};`).all();
+
+}
+
+function fetchTileByZXY(db, z, x, y) {
     return db.prepare(`
-        SELECT zoom_level, tile_column, tile_row, src_tile_data, tar_tile_data FROM ( 
-            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row, a.tile_data src_tile_data, b.tile_data tar_tile_data FROM tiles a
-                LEFT JOIN tar_mb.tiles b ON 
-                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level= ? 
+        SELECT zoom_level z, tile_column x, tile_row y FROM ( 
+            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM tiles a
+                LEFT JOIN raster.tiles b ON 
+                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level = ${z} AND a.tile_column = ${x} AND a.tile_row = ${y}
             UNION
-            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row, b.tile_data src_tile_data, a.tile_data tar_tile_data FROM tar_mb.tiles a
+            SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM raster.tiles a
                 LEFT JOIN tiles b ON 
-                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level= ?
-        ) ORDER BY zoom_level, tile_column, tile_row, src_tile_data, tar_tile_data LIMIT ? OFFSET ?;`).all();
+                b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row WHERE a.zoom_level = ${z} AND a.tile_column = ${x} AND a.tile_row = ${y}
+        ) ORDER BY zoom_level, tile_column, tile_row  LIMIT 1 OFFSET 0;`).all();
+}
+
+function formatPath(vectorPath, rasterQueue, format, proj, isDir) {
+    const extname = path.extname(vectorPath);
+    let rasterPath = rasterQueue && (rasterQueue?.find(p => p.endsWith(path.basename(vectorPath))) || !isDir && rasterQueue[0]) || undefined;
+    // 判断是否是raster的路径，
+    // 如果是，那说明没有跟他对应的vector，是被getQueue()方法merge的
+    // 此时应将rasterPath置为undefined
+    if (rasterQueue?.includes(vectorPath)) {
+        rasterPath = undefined
+    }
+    console.log('vectorPath:', vectorPath, 'rasterPath:', rasterPath);
+    const vectorMbTilePath = vectorPath ? `mbtiles://${vectorPath}` : undefined
+    const rasterMbTilePath = rasterPath ? `mbtiles://${rasterPath}` : undefined
+    let outputPath = ''
+    if (vectorPath) {
+        outputPath += path.basename(vectorPath, extname) + '_'
+    }
+    if (rasterPath) {
+        outputPath += path.basename(rasterPath, extname) + '_'
+    }
+
+
+    outputPath = `${outputPath}${format}_${proj}` + extname;
+    outputPath = args.options.paths['output'] ?
+        path.resolve(args.options.paths['output'], outputPath) : path.resolve(args.options.paths.mbtiles, outputPath);
+    return { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath };
+}
+
+function isArrayEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) {
+        return false; // 数组长度不同，元素肯定不一致
+    }
+
+    const sortedArr1 = arr1.slice().sort();
+    const sortedArr2 = arr2.slice().sort();
+
+    for (let i = 0; i < sortedArr1.length; i++) {
+        if (sortedArr1[i] !== sortedArr2[i]) {
+            return false; // 发现有不相同的元素，返回 false
+        }
+    }
+
+    return true; // 所有元素都相同，返回 true
+}
+
+function getQueue() {
+    let vectorQueue, rasterQueue, isVectorDir, isRasterDir;
+    for (const id of Object.keys(args.data)) {
+        if (id === 'vector') {
+            const vectorDir = path.resolve(args.options.paths.mbtiles, args.data[id].mbtiles);
+            console.log(`vectorDir: ${vectorDir}`)
+            const fileObj = getFilelist(vectorDir);
+            vectorQueue = fileObj.sqliteQueue
+            isVectorDir = fileObj.isDir
+            continue;
+        }
+        if (id === 'raster') {
+            const rasterDir = path.resolve(args.options.paths.mbtiles, args.data[id].mbtiles);
+            console.log(`rasterDir: ${rasterDir}`)
+            const fileObj = getFilelist(rasterDir);
+            rasterQueue = fileObj.sqliteQueue
+            isRasterDir = fileObj.isDir
+            continue;
+        }
+    }
+    const vectorFilelist = vectorQueue?.map(p => path.basename(p)) || [];
+    const rasterFilelist = rasterQueue?.map(p => path.basename(p)) || [];
+    const isEqual = isArrayEqual(vectorFilelist, rasterFilelist);
+    let mergedQueue = [...vectorQueue];
+    if (!isEqual && isVectorDir && isRasterDir) {
+        rasterFilelist.map(p => {
+            if (!vectorFilelist.includes(p)) {
+                const rasterMbtile = rasterQueue.find(q => q.endsWith(p))
+                if (rasterMbtile) {
+                    mergedQueue.push(rasterMbtile)
+                }
+            }
+        });
+    }
+    return { vectorQueue, rasterQueue, mergedQueue, isDir: isVectorDir && isRasterDir };
 }
 
 const args = config;
-const renderConfig = require('/data/config.json');
 let readMbtiles = async function () {
     console.log('args:', args);
-    const inputDirPath = args['inputDirPath'];
     const metadataDirPath = args['metadataDirPath'];
-    const proj = args['proj'];
-    const format = args['format'];
+    const proj = args.options['proj'] || 4326;
+    const format = args.options['format'] || 'webp';
     const id = 'vector';
-    const repo = render.repo;
-    await render.serve_render_add();
-    const sqliteQueue = [path.resolve(renderConfig.options.paths.mbtiles, renderConfig.data[id].mbtiles)];
-    // const sqliteQueue = ['/data/0-8.mbtiles'];
-    console.log('sqliteQueue:', sqliteQueue);
-    for (let inputPath of sqliteQueue) {
-        let outputPath = (inputPath.endsWith('sqlite') ? path.basename(inputPath, '.sqlite') : path.basename(inputPath, '.mbtiles')) + '_webp' + '.mbtiles';
-        outputPath = args['outputDirPath'] ? path.resolve(args['outputDirPath'], outputPath) : path.resolve(args['inputDirPath'], outputPath);
-        console.log('No.', sqliteQueue.indexOf(inputPath) + 1, 'outputDbPath:', outputPath);
+    let { vectorQueue, rasterQueue, mergedQueue, isDir } = getQueue();
+
+    console.log('vectorQueue:', vectorQueue, 'rasterQueue', rasterQueue, 'mergedQueue', mergedQueue, 'isDir', isDir);
+    for (let vectorPath of mergedQueue) {
+        const { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath } = formatPath(vectorPath, rasterQueue, format, proj, isDir);
+        // 启动渲染pool
+        await render.serve_render_add(vectorMbTilePath, rasterMbTilePath);
+        console.log('No.', vectorQueue.indexOf(vectorPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
         }
-        const inputDb = connectDb(inputPath);
-        let metadataPath = undefined;
+        const inputDb = connectDb(vectorPath);
+        let metadataPath
         if (metadataDirPath) {
-            metadataPath = path.resolve(metadataDirPath, path.basename(inputPath, '.sqlite').split(/[\_]/).find(p => p.startsWith('sea2')), 'metadata.json');
+            metadataPath = path.resolve(metadataDirPath, path.basename(vectorPath, '.sqlite').split(/[\_]/).find(p => p.startsWith('sea2')), 'metadata.json');
             if (!fs.existsSync(metadataPath)) {
-                console.log(`path ${metadataPath} not existed!`, metadataPath);
+                console.error(`path ${metadataPath} not existed!`, metadataPath);
             }
         }
         console.log('prepare outputDb ...');
         const outputDb = await createDb(metadataPath, inputDb, outputPath);
         console.log('calculate pagination ...');
         const startTime = Date.now();
-        const count = inputDb.prepare(`SELECT count(1) from tiles;`).pluck().get();
+        // TODO: 判断rasterPath是否为空，更新查询语句
+        const attached = vectorPath && rasterPath
+        const attachedDB = connectDb(vectorPath, rasterPath);
+        const count = getCount(attachedDB, attached);
         const pageCount = Math.ceil(count / limit);
+        // const pageCount = 1;
         console.log('Total count', count, ', page count', pageCount, ', page limit', limit);
         let currCount = 0;
         let overBoundCount = 0;
         for (let i = 0; i < pageCount; i++) {
             const offset = i * limit;
-            const data = inputDb.prepare(`SELECT zoom_level as z, tile_column as x, tile_row as y from tiles limit ${limit} offset ${offset};`).all();
+            const data = fetchTile(attachedDB, { offset, limit }, attached);
+            // const data = [{ z: 4, x: 11, y: 6 }];
             console.log('progress: ', offset, '-', offset + data.length);
             let res = [];
             for (let item of data) {
@@ -245,17 +347,18 @@ let readMbtiles = async function () {
                 // 3857的需要对y做翻转
                 if (proj === 3857) {
                     y = 2 ** z - 1 - y;
-                } else if (isOverBound(inputPath, z, x, y)) {
+                } else if (isOverBound(vectorPath, z, x, y)) {
                     // 3857的按全球的处理，不用计算是否超边界
                     overBoundCount++;
                     continue;
                 }
                 const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
-                console.log('z', z, 'x', x, 'y', y, 'topRightCorner', topRightCorner, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
+                // console.log('z', z, 'x', x, 'y', y, 'tileCenter', tileCenter[0].toFixed(20), tileCenter[1].toFixed(20));
                 tileCenter[0] = parseFloat(tileCenter[0].toFixed(20));
                 tileCenter[1] = parseFloat(tileCenter[1].toFixed(20));
                 item = await render.renderImage(z, x, y, tileCenter, format, tileSize, scale);
-
+                // console.log(item, 'item_________________')
+                // fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, item.tile_data)
                 res.push(item);
             }
             const insert = outputDb.prepare(`INSERT INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (@zoom_level, @tile_column, @tile_row, @tile_data);`);
@@ -269,16 +372,15 @@ let readMbtiles = async function () {
             await insertMany(readyData);
             console.log('Insert count:', currCount, ', overBoundCount:', overBoundCount);
         }
-        console.log('Total count', count, ', insert count:', currCount, ', overBoundCount:', overBoundCount, 'insert count + overBoundCount: ', currCount + overBoundCount);
+        console.log('Total count', count, ', insert count:', currCount, ', overBoundCount:', overBoundCount, ', insert count + overBoundCount: ', currCount + overBoundCount);
         console.log('Create index ...');
         createIndex(outputPath);
         console.log('Create index finished!');
         console.log('Finshed! Total time cost:', (Date.now() - startTime) / 1000 / 60);
-        fs.appendFileSync(logPath, 'No. ' + (sqliteQueue.indexOf(inputPath) + 1) + ' ' + new Date().toLocaleString() + ' ' + outputPath + '\n');
+        fs.appendFileSync(logPath, 'No. ' + (vectorQueue.indexOf(vectorPath) + 1) + ' ' + new Date().toLocaleString() + ' ' + outputPath + '\n');
     }
-
-    console.log('finished')
-    render.serve_render_remove(repo, id);
+    console.log('All are finished successfully!');
+    render.serve_render_remove(render.repo, id);
 }
 
 readMbtiles()
@@ -287,5 +389,4 @@ readMbtiles()
 // sudo apt-get update && sudo apt-get install xvfb && npm install
 // EGL_LOG_LEVEL=debug
 // output: /input/db/path_png.mbtiles located at the same path
-// xvfb-run -a -s '-screen 0 1024x768x24' node server.js
 // e.g.: xvfb-run -a -s '-screen 0 1024x768x24' node server.js

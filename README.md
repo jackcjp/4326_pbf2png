@@ -2,12 +2,51 @@
 读取配置文件路径下的mbtiles/sqlite中的pbf，上色并转换格式保存到mbtiles中
 
 
-docker build -t cjp/pbf2png:v1 .
+docker build -t pbf2imgv4:v1 .
 
-docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
+docker run -it --name pbf2imgv4-base -v $(pwd):/data -p 9443:80 pbf2imgv4:v1
+
+change_color_and_format_config.json
+```
+{
+    "options": {
+        "paths": {
+            "styles": "/data/style",
+            "mbtiles": "/data",
+            "output": "/data/test/output"
+        },
+        "proj": 3857,
+        "format": "png",
+        "tileSize": 256,
+        "scale": 1
+    },
+    "styles": {
+        "vector": {
+            "style": "hillshade_v4.json",
+            "tilejson": {
+                "bounds": [
+                    -180,
+                    -80,
+                    180,
+                    80
+                ]
+            }
+        }
+    },
+    "data": {
+        "vector": {
+            "mbtiles": "test/vector/vector.mbtiles"
+        },
+        "raster": {
+            "mbtiles": "0-0-0_webp.mbtiles"
+        }
+    }
+}
+```
+
 
 #### Steps:
-0. Prepare the docker environment and cjp/pbf2png image; You may need to replace the style.json if you want customed style.
+0. Prepare the docker environment and pbf2imgv4 image; You may need to replace the style.json if you want customed style.
     Use style/fixtures/style.json by default.
 1. Modify and copy config.json to current data dir, the config path should match the $(pwd);
     E.g.: $(pwd) is /mnt/144_8/gis_data/sea9, the inputDirPath is the mbtile in /mnt/144_8/gis_data/sea9, such as '/data', 
@@ -15,7 +54,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
 
     the metadataDirPath is the metadata location dir path, such as 'sea2-0-1-z9'.
     If the metadataDirPath dir is not same as the inputDirPath, more volumes are needed.
-    E.g.: 'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1'
+    E.g.: 'docker run -it --name pbf2imgv4-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 pbf2imgv4:v1'
     The outputDirPath(optional) can also be defined in the config.json, volume may be also needed.
     The outputDirPath is needed if the inputDirPath is a sqlite file.
 
@@ -25,21 +64,33 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     NOTE: pay attention to container name and port when running more than one instance.
 3. Recheck the log, mbtiles to confirm it works well.
 #### 步骤
-0. 准备好docker环境和cjp/pbf2png image；如果你想自定义style（pbf的上色），你得替换style/fixtures/里的style.json或者在配置文件里(如："stypePath":"/data/style.json")
-    默认用style/fixtures/style.json
-    如果是矢量直接叠加栅格和样式，则在config.json里配置路径 "styles": { "vector": { "style": "/data/style.json" } }
-1. 修改change_color_and_format_config.json，添加inputDirPath(只查找该路径下的sqlite文件)， metadataDirPath（可选的）， outputDirPath（可选的）
-    config.json的路径要和映射的volume 的路径对应
-    例如：volume 的路径是/mnt/144_8/gis_data/sea9:/data， inputDirPath就是sea9目录下的一个mbtiles， inputDirPath:"/data";
-    metadataDirPath，outputDirPath也是同样的。
-    如果inputDirPath，metadataDirPath，outputDirPath不是在同一个文件夹下，那么都需要volume进到container中。
-    如果inputDirPath是以sqlite结尾的,按sqlite处理且需要传outputDirPath.
+0. 准备好docker环境和pbf2img image；准备样式文件（style.json）和配置文件(change_color_and_format_config.json)
+    自定义style（pbf的上色），你得替换style.json或者在配置文件里配置
+    默认用style/style.json
+    如果自定义样式文件位置，则在change_color_and_format_config.json里配置路径 "styles": { "vector": { "style": "style.json" } }
+    注意：这里要与options["paths"]["styles"]配合使用，以便能找到配置文件。
+1. 数据，
+    data的type支持两种，vector和raster。支持两者一起融合；也支持有vector或raster中一种的。
+    配置文件的data[type]["mbtiles"](只查找该路径下的mbtiles文件)， 注意：这里要与options["paths"]["mbtiles"]配合使用，以便能找到数据。
+    data[type]["mbtiles"] 既可是单个mbtiles，也可是文件夹名；
+    如果有两种类型，则要保持一致（如是文件夹名都是文件夹名，如是单个mbtiles都是mbtiles）。
+    单个文件用mbtiles，多个文件用文件夹名。
+    如是文件夹名，则查找该文件夹名下的mbtiles文件；如果有vector和raster两种文件夹名路径，则文件名应保持一致，如都按网格号命名；
+    如果两个文件夹名下的文件网格号和数量不一致，则取并集。
 
-    proj 默认是4326的，如果需要做3857的，就需要配置proj为3857
-    format 默认是webp，如果需要png，就需要配置format为png，支持png，webp，jpeg，jpg。
+    metadataDirPath: 可选，默认用原文件的meatadata；
+    output: 可选，默认用options["paths"]["mbtiles"]）；
+    如果mbtiles，metadataDirPath，output不在同一个文件夹下，那么都需要volume进container中。
 
+    proj: 默认是4326的，支持3857，4326两种坐标系
+    format: 默认是webp，支持png，webp，jpeg，jpg（jpg按jpeg处理）。
+    tileSize: 渲染时瓦片的大小 默认是512，支持256和512两种尺寸。
+    resize: 导出的瓦片大小，可选，默认是256。
+    注意：tileSize和resize是为达到良好的效果而单独设置的，tileserver-gl的tileSize默认是256，没有resize。
+    scale: 默认是1，支持1,2,3。
+    
     配置完成后把change_color_and_format_config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
-2. 通过命令行 (E.g.:'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1')
+2. 通过命令行 (E.g.:'docker run -it --name pbf2imgv4 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -p 9448:80 pbf2imgv4:v1')
     启动一个container就可以开始跑了。
     如果想同时开跑多个container实例，记得区分name和port就行。
 3. 跑完后检查日志和生成的mbtiles，看是否正确。
@@ -49,7 +100,6 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
 // sudo apt-get update && sudo apt-get install xvfb && npm install
 // EGL_LOG_LEVEL=debug
 // output: /input/db/path_png.mbtiles located at the same path
-// xvfb-run -a -s '-screen 0 800x600x24' node server.js
 // e.g.: xvfb-run -a -s '-screen 0 800x600x24' node server.js
 
 请求pbf文件

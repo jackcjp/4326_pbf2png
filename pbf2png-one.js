@@ -26,7 +26,7 @@ const render = require('./serve_render');
 // const data = fs.readFileSync('/data/pbf/6-27-52.pbf')
 // let z = 6, x = 27, y = 52
 // const data = fs.readFileSync('/data/pbf/2-1-0.pbf')
-let z = 3, x = 6, y = 3
+// let z = 3, x = 0, y = 7
 // const data = fs.readFileSync('./pbf/6_53_24.pbf')
 // const z = 6, x = 53, y = 24
 
@@ -184,10 +184,10 @@ const mercatorCenter = function (z, x, y) {
     ], z);
 }
 
-const aa = async (proj) => {
+const aa = async (proj, z, x, y) => {
     const repo = render.repo;
-    await render.serve_render_add();
-    // y = 2 ** z - 1 - y;
+    await render.serve_render_add('mbtiles://vector.mbtiles', 'mbtiles://0-8_webp.mbtiles');
+    y = 2 ** z - 1 - y;
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     // console.log('bbbbbb', tileCenter)
     // console.log('bbbbbb22222222', data)
@@ -196,7 +196,7 @@ const aa = async (proj) => {
     tileCenter[0] = parseFloat(tileCenter[0].toFixed(20));
     tileCenter[1] = parseFloat(tileCenter[1].toFixed(20));
     // const tile_data = await changeColorAndFormat(z, x, y, parseFloat(tileCenter[0].toFixed(20)), parseFloat(tileCenter[1].toFixed(20)), data);
-    const tile_data = await render.renderImage(z, x, y, tileCenter, 'png', 256);
+    const tile_data = await render.renderImage(z, x, y, tileCenter, 'png', 512, );
 
     console.log('tile_data', tile_data);
 
@@ -210,7 +210,7 @@ const aa = async (proj) => {
     render.serve_render_remove(repo, 'vector');
 }
 // aa();
-aa(3857, 3, 6, 3);
+aa(3857, 5, 25, 18);
 
 // 配置sources有两种可用的方案
 
@@ -239,10 +239,15 @@ aa(3857, 3, 6, 3);
 //     }
 //   },
 
-// xvfb-run -a -s '-screen 0 1024x768x24' node pbf2png-one.js ./2-6-1.mbtiles
+// xvfb-run -a -s '-screen 0 1024x768x24' node pbf2png-one.js
 
 
 // style.json与pbf  在4326和3857下有没有区别？
 // style 可以相同，但是pbf是不同的，也就是说做4326的和3857的pbf是不同的，但是style是可以相同的
 
-
+// 1.矢量和栅格 有的有网格，有的没网格，以哪个为准？现在是以矢量来循环，这样会漏掉没有跟矢量对应的栅格的网格
+// 都要，不能漏，矢量和栅格取并集作为循环条件呗
+// 2.会不会只有栅格mbtile上色？
+// 那不会吧, 栅格不会上色, 叠加是有的，矢量在上
+// 3.会有多对一，或者一对多的情况吗？比如只有一个栅格，但是有多个矢量，或者只有一个矢量，有多个栅格？
+// 可以规定

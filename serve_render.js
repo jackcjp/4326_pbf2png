@@ -6,10 +6,10 @@ const advancedPool = require('advanced-pool');
 const mlgl = require('@maplibre/maplibre-gl-native');
 const sharp = require('sharp');
 const mercator = new (require('@mapbox/sphericalmercator'))();
-// const url = require('url');
 const axios = require('axios');
 const MBTiles = require('node-mbtilesv123');
 const zlib = require('node:zlib');
+const config = require('/data/change_color_and_format_config.json');
 
 const isValidHttpUrl = (string) => {
     let url;
@@ -22,7 +22,62 @@ const isValidHttpUrl = (string) => {
 
     return url.protocol === 'http:' || url.protocol === 'https:';
 };
-const config = require('/data/config.json');
+
+/**
+ * Cache of response data by sharp output format and color.  Entry for empty
+ * string is for unknown or unsupported formats.
+ */
+const cachedEmptyResponses = {
+    '': Buffer.alloc(0),
+};
+
+/**
+ * Create an appropriate mlgl response for http errors.
+ * @param {string} format The format (a sharp format or 'pbf').
+ * @param {string} color The background color (or empty string for transparent).
+ * @param {Function} callback The mlgl callback.
+ */
+function createEmptyResponse(format, color, callback) {
+    if (!format || format === 'pbf') {
+        callback(null, { data: cachedEmptyResponses[''] });
+        return;
+    }
+
+    if (format === 'jpg') {
+        format = 'jpeg';
+    }
+    if (!color) {
+        color = 'rgba(255,255,255,255)';
+    }
+    color = 'rgba(255,255,255,255)';
+
+    const cacheKey = `${format},${color}`;
+    const data = cachedEmptyResponses[cacheKey];
+    if (data) {
+        callback(null, { data: data });
+        return;
+    }
+
+    // create an "empty" response image
+    color = new Color(color);
+    const array = color.array();
+    const channels = array.length === 4 && format !== 'jpeg' ? 4 : 3;
+    sharp(Buffer.from(array), {
+        raw: {
+            width: 1,
+            height: 1,
+            channels,
+        },
+    })
+        .toFormat(format)
+        .toBuffer((err, buffer, info) => {
+            if (!err) {
+                cachedEmptyResponses[cacheKey] = buffer;
+            }
+            callback(null, { data: buffer });
+        });
+}
+
 const data = config.data;
 
 const map = {
@@ -32,21 +87,12 @@ const map = {
     sourceTypes: {},
 };
 let repoobj = {};
-const options = {
-    paths: {
-        root: '/data/resources',
-        fonts: '/data/resources/fonts',
-        styles: '/data/style',
-        mbtiles: '/data',
-        sprites: '/data/resources',
-        pmtiles: '/data/resources',
-        icons: '/data/resources'
-    }
-}, id = 'vector', params = {
-    style: config.styles[id].style,
-    tilejson: { bounds: [-180, -80, 180, 80] }
-}, publicUrl = undefined
-    , dataResolver = function (styleSourceId) {
+const options = config.options,
+    // 因config.styles只有一个，故取第一个，参考server.js中L269-L277 addStyle
+    id = Object.keys(config.styles)[0], params = config.styles[id],
+    publicUrl = undefined,
+    dataResolver = function (styleSourceId, type) {
+        // console.log('styleSourceId:', styleSourceId);
         let fileType;
         let inputFile;
         for (const id of Object.keys(data)) {
@@ -59,15 +105,27 @@ const options = {
                 break;
             }
         }
+        if (!inputFile) {
+            if (data[type][fileType].endsWith(styleSourceId)) {
+                inputFile = path.resolve(options.paths[fileType], data[type][fileType]);
+            } else {
+                inputFile = path.resolve(options.paths[fileType], data[type][fileType], styleSourceId);
+            }
+        }
         if (!isValidHttpUrl(inputFile)) {
             inputFile = path.resolve(options.paths[fileType], inputFile);
         }
+        // console.log('inputFile:', inputFile, 'fileType', fileType);
         return { inputFile, fileType };
     }
+// 赋默认值
+if (!options.resize) {
+    options.resize = 256
+}
 
-console.log('options:', options, 'params:', params, 'id:', id)
+// console.log('options:', options, 'params:', params, 'id:', id)
 
-const serve_render_add = async () => {
+const serve_render_add = async (vectorUrl, rasterUrl) => {
     let styleJSON;
 
     const styleFile = params.style;
@@ -75,7 +133,7 @@ const serve_render_add = async () => {
     try {
         styleJSON = JSON.parse(fs.readFileSync(styleJSONPath));
     } catch (e) {
-        console.log('Error parsing style file, file path:', styleJSONPath, e);
+        console.error('Error parsing style file, file path:', styleJSONPath, e);
         return false;
     }
 
@@ -136,13 +194,11 @@ const serve_render_add = async () => {
             params.staticAttributionText || options.staticAttributionText,
     };
 
-    // const item = repoobj;
-
     const queue = [];
     for (const name of Object.keys(styleJSON.sources)) {
         let sourceType;
         let source = styleJSON.sources[name];
-        let url = source.url;
+        let url = (source.type === id ? vectorUrl : rasterUrl) || source.url;
         if (
             url &&
             (url.startsWith('pmtiles://') || url.startsWith('mbtiles://'))
@@ -162,7 +218,7 @@ const serve_render_add = async () => {
 
             let inputFile;
             // console.log('dataId', dataId)
-            const dataInfo = dataResolver(dataId);
+            const dataInfo = dataResolver(dataId, source.type);
             if (dataInfo.inputFile) {
                 inputFile = dataInfo.inputFile;
                 sourceType = dataInfo.fileType;
@@ -278,6 +334,8 @@ const serve_render_add = async () => {
 
     let maxScaleFactor = 2;
 
+    maxScaleFactor = Math.min(Math.floor(options.maxScaleFactor || 3), 9);
+
     const createPool = (ratio, mode, min, max) => {
         const createRenderer = (ratio, createCallback) => {
             const renderer = new mlgl.Map({
@@ -310,6 +368,7 @@ const serve_render_add = async () => {
                             callback(err, { data: null });
                         }
                     } else if (protocol === 'mbtiles' || protocol === 'pmtiles') {
+                        // console.log('Handling request:_____________________', req.url);
                         const parts = req.url.split('/');
                         const sourceId = parts[2];
                         const source = map.sources[sourceId];
@@ -360,7 +419,7 @@ const serve_render_add = async () => {
                             source.getTile(z, x, y, (err, data, headers) => {
                                 if (err) {
                                     if (options.verbose)
-                                        console.log('MBTiles error, serving empty', err);
+                                        console.log('MBTiles error, serving empty', err, req.url);
                                     createEmptyResponse(
                                         sourceInfo.format,
                                         sourceInfo.color,
@@ -370,10 +429,6 @@ const serve_render_add = async () => {
                                 }
 
                                 const response = {};
-                                if (headers['Last-Modified']) {
-                                    response.modified = new Date(headers['Last-Modified']);
-                                }
-
                                 if (format === 'pbf') {
                                     try {
                                         response.data = zlib.unzipSync(data);
@@ -402,7 +457,7 @@ const serve_render_add = async () => {
                                 }
 
                                 callback(null, response);
-                            }, sourceInfo.type === 'vector');
+                            }, sourceInfo.type === id);
                         }
                     } else if (protocol === 'http' || protocol === 'https') {
                         try {
@@ -640,7 +695,7 @@ const renderingImage = async (
                 //     return fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, buffer)
                 // });
 
-                return image.toBuffer()
+                return image.resize(options.resize || 256, options.resize || 256).toBuffer()
                     .then(data => { resolve({ 'zoom_level': z, 'tile_column': x, 'tile_row': y, 'tile_data': data }) })
                     .catch(err => {
                         // console.err(err);
@@ -683,4 +738,4 @@ module.exports = {
 // }
 // console.log(aa)
 
-// xvfb-run -a -s '-screen 0 1024x768x24' node new-pbf2webp-one.js
+// xvfb-run -a -s '-screen 0 1024x768x24' node serve_render.js
