@@ -46,24 +46,6 @@ change_color_and_format_config.json
 
 
 #### Steps:
-0. Prepare the docker environment and pbf2imgv4 image; You may need to replace the style.json if you want customed style.
-    Use style/fixtures/style.json by default.
-1. Modify and copy config.json to current data dir, the config path should match the $(pwd);
-    E.g.: $(pwd) is /mnt/144_8/gis_data/sea9, the inputDirPath is the mbtile in /mnt/144_8/gis_data/sea9, such as '/data', 
-    Only search for sqlites files under the inputDirPath.
-
-    the metadataDirPath is the metadata location dir path, such as 'sea2-0-1-z9'.
-    If the metadataDirPath dir is not same as the inputDirPath, more volumes are needed.
-    E.g.: 'docker run -it --name pbf2imgv4-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 pbf2imgv4:v1'
-    The outputDirPath(optional) can also be defined in the config.json, volume may be also needed.
-    The outputDirPath is needed if the inputDirPath is a sqlite file.
-
-    The default projection is 4326. You need to add "proj":3857 into config.json if you want mercator(3857).
-
-2. Run a docker container to remove over bound tiles, add color, change format with the command above; 
-    NOTE: pay attention to container name and port when running more than one instance.
-3. Recheck the log, mbtiles to confirm it works well.
-#### 步骤
 0. 准备好docker环境和pbf2img image；准备样式文件（style.json）和配置文件(change_color_and_format_config.json)
     自定义style（pbf的上色），你得替换style.json或者在配置文件里配置
     默认用style/style.json
