@@ -1,7 +1,7 @@
 
 const path = require('path');
 const fs = require('node:fs');
-// const canvas = require('canvas');
+const { createCanvas } = require('canvas')
 const advancedPool = require('advanced-pool');
 const mlgl = require('@maplibre/maplibre-gl-native');
 const sharp = require('sharp');
@@ -9,6 +9,7 @@ const mercator = new (require('@mapbox/sphericalmercator'))();
 const axios = require('axios');
 const MBTiles = require('node-mbtilesv123');
 const zlib = require('node:zlib');
+const Color = require('color');
 const config = require('/data/change_color_and_format_config.json');
 
 const isValidHttpUrl = (string) => {
@@ -22,6 +23,18 @@ const isValidHttpUrl = (string) => {
 
     return url.protocol === 'http:' || url.protocol === 'https:';
 };
+
+function createTransparentResponse(format = 'png', callback) {
+    const canvas = createCanvas(1, 1);
+    const context = canvas.getContext('2d');
+
+    // 设置全透明（RGBA: 0, 0, 0, 0）
+    context.clearRect(0, 0, 1, 1);
+
+    // 将Canvas内容转换为Buffer
+    callback(null, { data: canvas.toBuffer(`image/png`) })
+    return
+}
 
 /**
  * Cache of response data by sharp output format and color.  Entry for empty
@@ -47,9 +60,8 @@ function createEmptyResponse(format, color, callback) {
         format = 'jpeg';
     }
     if (!color) {
-        color = 'rgba(255,255,255,255)';
+        color = 'rgba(255,255,255,0)';
     }
-    color = 'rgba(255,255,255,255)';
 
     const cacheKey = `${format},${color}`;
     const data = cachedEmptyResponses[cacheKey];
@@ -125,7 +137,7 @@ if (!options.resize) {
 
 // console.log('options:', options, 'params:', params, 'id:', id)
 
-const serve_render_add = async (vectorUrl, rasterUrl) => {
+const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
     let styleJSON;
 
     const styleFile = params.style;
@@ -135,6 +147,21 @@ const serve_render_add = async (vectorUrl, rasterUrl) => {
     } catch (e) {
         console.error('Error parsing style file, file path:', styleJSONPath, e);
         return false;
+    }
+
+    // 只在vectorUrl和rasterUrl有一个为空时重置styleJSON.sources，同时为空或者同时不空都不处理
+    if ((vectorUrl === undefined) ^ (rasterUrl === undefined)) { // 使用异或运算符^
+        const sourceTypes = { vector: vectorUrl !== undefined, raster: rasterUrl !== undefined };
+        let sourceTypeKey = sourceTypes.vector ? 'vector' : 'raster'; // 根据哪个URL不为空设置sourceTypeKey
+
+        // 查找对应的源名称
+        let name = Object.keys(styleJSON.sources).find(p => styleJSON.sources[p].type === sourceTypeKey);
+
+        // 如果找到了对应的name，则更新sources对象并应用到styleJSON.sources
+        if (name) {
+            const sources = { [name]: styleJSON.sources[name] }; // 使用计算属性名语法
+            styleJSON.sources = sources;
+        }
     }
 
     for (const layer of styleJSON.layers || []) {
@@ -198,7 +225,10 @@ const serve_render_add = async (vectorUrl, rasterUrl) => {
     for (const name of Object.keys(styleJSON.sources)) {
         let sourceType;
         let source = styleJSON.sources[name];
-        let url = (source.type === id ? vectorUrl : rasterUrl) || source.url;
+
+        // 当data[type]["mbtiles"]为文件夹名时需要用传入的路径
+        let url = isDir ? (source.type === id ? vectorUrl : rasterUrl) : source.url;
+        // console.log(name, source.type, id, isDir, source.url, url, '__________11111111111111111')
         if (
             url &&
             (url.startsWith('pmtiles://') || url.startsWith('mbtiles://'))
@@ -217,8 +247,8 @@ const serve_render_add = async (vectorUrl, rasterUrl) => {
             }
 
             let inputFile;
-            // console.log('dataId', dataId)
-            const dataInfo = dataResolver(dataId, source.type);
+            // console.log('dataId_source.type', dataId, name)
+            const dataInfo = dataResolver(dataId, name);
             if (dataInfo.inputFile) {
                 inputFile = dataInfo.inputFile;
                 sourceType = dataInfo.fileType;
@@ -299,6 +329,7 @@ const serve_render_add = async (vectorUrl, rasterUrl) => {
                                     // meta url which will be detected when requested
                                     `mbtiles://${name}/{z}/{x}/{y}.${info.format || 'pbf'}`,
                                 ];
+                                // console.log('source.tiles____', source.tiles);
                                 delete source.scheme;
 
                                 if (options.dataDecoratorFunc) {
@@ -420,11 +451,15 @@ const serve_render_add = async (vectorUrl, rasterUrl) => {
                                 if (err) {
                                     if (options.verbose)
                                         console.log('MBTiles error, serving empty', err, req.url);
-                                    createEmptyResponse(
-                                        sourceInfo.format,
-                                        sourceInfo.color,
-                                        callback,
-                                    );
+                                    if (options.isTransparentWhenEmpty) {
+                                        createTransparentResponse(sourceInfo.format, callback)
+                                    } else {
+                                        createEmptyResponse(
+                                            sourceInfo.format,
+                                            sourceInfo.color,
+                                            callback,
+                                        );
+                                    }
                                     return;
                                 }
 
@@ -617,6 +652,7 @@ const renderingImage = async (
                 pool.release(renderer);
                 if (err) {
                     console.error(err, 'renderer.render error!');
+                    return reject(err)
                 }
 
                 const image = sharp(data, {

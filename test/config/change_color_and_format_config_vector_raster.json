@@ -1,0 +1,35 @@
+{
+    "options": {
+        "paths": {
+            "styles": "/data/style",
+            "mbtiles": "/data",
+            "output": "/data/test/output"
+        },
+        "proj": 3857,
+        "format": "png",
+        "tileSize": 512,
+        "resize": 256,
+        "scale": 1
+    },
+    "styles": {
+        "vector": {
+            "style": "hillshade_v4.json",
+            "tilejson": {
+                "bounds": [
+                    -180,
+                    -80,
+                    180,
+                    80
+                ]
+            }
+        }
+    },
+    "data": {
+        "test_vector": {
+            "mbtiles": "test/vector/vector.mbtiles"
+        },
+        "shade": {
+            "mbtiles": "test/raster/0-0-0_webp.mbtiles"
+        }
+    }
+}

@@ -186,7 +186,7 @@ const mercatorCenter = function (z, x, y) {
 
 const aa = async (proj, z, x, y) => {
     const repo = render.repo;
-    await render.serve_render_add('mbtiles://vector.mbtiles', 'mbtiles://0-8_webp.mbtiles');
+    await render.serve_render_add();
     y = 2 ** z - 1 - y;
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     // console.log('bbbbbb', tileCenter)
@@ -210,7 +210,7 @@ const aa = async (proj, z, x, y) => {
     render.serve_render_remove(repo, 'vector');
 }
 // aa();
-aa(3857, 5, 25, 18);
+aa(3857, 3, 4, 2);
 
 // 配置sources有两种可用的方案
 

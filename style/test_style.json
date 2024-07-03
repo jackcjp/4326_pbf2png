@@ -1,0 +1,52 @@
+{
+  "version": 8,
+  "name": "OSM Liberty",
+  "metadata": {
+    "maputnik:license": "https://github.com/maputnik/osm-liberty/blob/gh-pages/LICENSE.md",
+    "maputnik:renderer": "mbgljs",
+    "openmaptiles:version": "3.x"
+  },
+  "sources": {
+    "land": {
+      "type": "raster",
+      "url": "mbtiles://z8_noglacierbufferreclass.cog.mbtiles",
+      "minzoom": 0,
+      "maxzoom": 3
+    },
+    "ns": {
+      "type": "raster",
+      "url": "mbtiles://z8_glacierbufferreclass.cog.mbtiles",
+      "minzoom": 0,
+      "maxzoom": 3
+    }
+  },
+  "layers": [
+    {
+      "id": "test",
+      "type": "background",
+      "layout": {
+        "visibility": "visible"
+      },
+      "paint": {
+        "background-color": "#a5cde1"
+      }
+    },
+    {
+      "id": "land",
+      "type": "raster",
+      "source": "land",
+      "layout": {
+        "visibility": "visible"
+      }
+    },
+    {
+      "id": "ns",
+      "type": "raster",
+      "source": "ns",
+      "layout": {
+        "visibility": "visible"
+      }
+    }
+  ],
+  "id": "hillshade"
+}

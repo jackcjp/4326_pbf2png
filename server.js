@@ -22,12 +22,12 @@ mbgl.on('message', function (err) {
 });
 
 let connectDb = function (dbPath, attachPath) {
-    if (attachPath) {
+    if (dbPath && attachPath && attachPath !== dbPath) {
         const db = betterSqlite(dbPath, /*{ verbose: console.log }*/);
         db.prepare('ATTACH DATABASE ? AS raster').run(attachPath);
         return db;
     }
-    return betterSqlite(dbPath, /*{ verbose: console.log }*/);
+    return betterSqlite(dbPath || attachPath, /*{ verbose: console.log }*/);
 }
 
 let parseMetadata = function (metadataPath) {
@@ -219,11 +219,11 @@ function fetchTileByZXY(db, z, x, y) {
 function formatPath(vectorPath, rasterQueue, format, proj, isDir) {
     const extname = path.extname(vectorPath);
     let rasterPath = rasterQueue && (rasterQueue?.find(p => p.endsWith(path.basename(vectorPath))) || !isDir && rasterQueue[0]) || undefined;
-    // 判断是否是raster的路径，
-    // 如果是，那说明没有跟他对应的vector，是被getQueue()方法merge的
-    // 此时应将rasterPath置为undefined
-    if (rasterQueue?.includes(vectorPath)) {
-        rasterPath = undefined
+    // // 判断是否是raster的路径，
+    // // 如果是，那说明没有跟他对应的vector，是被getQueue()方法merge的
+    // // 此时应将vectorPath置为undefined
+    if (rasterPath === vectorPath) {
+        vectorPath = undefined
     }
     console.log('vectorPath:', vectorPath, 'rasterPath:', rasterPath);
     const vectorMbTilePath = vectorPath ? `mbtiles://${vectorPath}` : undefined
@@ -260,22 +260,24 @@ function isArrayEqual(arr1, arr2) {
     return true; // 所有元素都相同，返回 true
 }
 
-function getQueue() {
-    let vectorQueue, rasterQueue, isVectorDir, isRasterDir;
-    for (const id of Object.keys(args.data)) {
-        if (id === 'vector') {
-            const vectorDir = path.resolve(args.options.paths.mbtiles, args.data[id].mbtiles);
+function getQueue(id) {
+    let vectorQueue = [], rasterQueue = [], isVectorDir = true, isRasterDir = true;
+    const styleJSONPath = path.resolve(args.options.paths.styles, args.styles[id].style)
+    let styleJSON = JSON.parse(fs.readFileSync(styleJSONPath))
+    for (const i of Object.keys(args.data)) {
+        if (styleJSON.sources[i].type === 'vector') {
+            const vectorDir = path.resolve(args.options.paths.mbtiles, args.data[i].mbtiles);
             console.log(`vectorDir: ${vectorDir}`)
             const fileObj = getFilelist(vectorDir);
-            vectorQueue = fileObj.sqliteQueue
+            vectorQueue = [...vectorQueue, ...fileObj.sqliteQueue]
             isVectorDir = fileObj.isDir
             continue;
         }
-        if (id === 'raster') {
-            const rasterDir = path.resolve(args.options.paths.mbtiles, args.data[id].mbtiles);
+        if (styleJSON.sources[i].type === 'raster') {
+            const rasterDir = path.resolve(args.options.paths.mbtiles, args.data[i].mbtiles);
             console.log(`rasterDir: ${rasterDir}`)
             const fileObj = getFilelist(rasterDir);
-            rasterQueue = fileObj.sqliteQueue
+            rasterQueue = [...rasterQueue, ...fileObj.sqliteQueue]
             isRasterDir = fileObj.isDir
             continue;
         }
@@ -284,6 +286,8 @@ function getQueue() {
     const rasterFilelist = rasterQueue?.map(p => path.basename(p)) || [];
     const isEqual = isArrayEqual(vectorFilelist, rasterFilelist);
     let mergedQueue = [...vectorQueue];
+    // 矢量栅格以网格号为名的数据融合。
+    // 如两个文件列表不同，且都是目录，则将rasterFilelist中有，vectorFilelist中没有的文件合并到mergeQueue中
     if (!isEqual && isVectorDir && isRasterDir) {
         rasterFilelist.map(p => {
             if (!vectorFilelist.includes(p)) {
@@ -293,6 +297,12 @@ function getQueue() {
                 }
             }
         });
+    } else {
+        // 路径不是目录，且是两个栅格数据融合
+        if (rasterQueue.length === 2) {
+            mergedQueue = [rasterQueue[0]]
+            rasterQueue = [rasterQueue[1]]
+        }
     }
     return { vectorQueue, rasterQueue, mergedQueue, isDir: isVectorDir && isRasterDir };
 }
@@ -304,13 +314,13 @@ let readMbtiles = async function () {
     const proj = args.options['proj'] || 4326;
     const format = args.options['format'] || 'webp';
     const id = 'vector';
-    let { vectorQueue, rasterQueue, mergedQueue, isDir } = getQueue();
+    let { vectorQueue, rasterQueue, mergedQueue, isDir } = getQueue(id);
 
     console.log('vectorQueue:', vectorQueue, 'rasterQueue', rasterQueue, 'mergedQueue', mergedQueue, 'isDir', isDir);
     for (let vectorPath of mergedQueue) {
         const { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath } = formatPath(vectorPath, rasterQueue, format, proj, isDir);
         // 启动渲染pool
-        await render.serve_render_add(vectorMbTilePath, rasterMbTilePath);
+        await render.serve_render_add(vectorMbTilePath, rasterMbTilePath, isDir);
         console.log('No.', vectorQueue.indexOf(vectorPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
@@ -327,8 +337,8 @@ let readMbtiles = async function () {
         const outputDb = await createDb(metadataPath, inputDb, outputPath);
         console.log('calculate pagination ...');
         const startTime = Date.now();
-        // TODO: 判断rasterPath是否为空，更新查询语句
-        const attached = vectorPath && rasterPath
+        // 判断rasterPath是否为空，更新查询语句
+        const attached =  vectorPath && rasterPath && rasterPath !== vectorPath
         const attachedDB = connectDb(vectorPath, rasterPath);
         const count = getCount(attachedDB, attached);
         const pageCount = Math.ceil(count / limit);

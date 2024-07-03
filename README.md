@@ -52,7 +52,7 @@ change_color_and_format_config.json
     如果自定义样式文件位置，则在change_color_and_format_config.json里配置路径 "styles": { "vector": { "style": "style.json" } }
     注意：这里要与options["paths"]["styles"]配合使用，以便能找到配置文件。
 1. 数据，
-    data的type支持两种，vector和raster。支持两者一起融合；也支持有vector或raster中一种的。
+    data的type需要跟styles.json中的sources的key保持一致。现支持vector和raster一起融合；也支持有vector或raster中一种的。
     配置文件的data[type]["mbtiles"](只查找该路径下的mbtiles文件)， 注意：这里要与options["paths"]["mbtiles"]配合使用，以便能找到数据。
     data[type]["mbtiles"] 既可是单个mbtiles，也可是文件夹名；
     如果有两种类型，则要保持一致（如是文件夹名都是文件夹名，如是单个mbtiles都是mbtiles）。
@@ -65,12 +65,20 @@ change_color_and_format_config.json
     如果mbtiles，metadataDirPath，output不在同一个文件夹下，那么都需要volume进container中。
 
     proj: 默认是4326的，支持3857，4326两种坐标系
+    
     format: 默认是webp，支持png，webp，jpeg，jpg（jpg按jpeg处理）。
+    
     tileSize: 渲染时瓦片的大小 默认是512，支持256和512两种尺寸。
+    
     resize: 导出的瓦片大小，可选，默认是256。
     注意：tileSize和resize是为达到良好的效果而单独设置的，tileserver-gl的tileSize默认是256，没有resize。
-    scale: 默认是1，支持1,2,3。
     
+    scale: 默认是1，支持1,2,3。
+
+    isTransparentWhenEmpty: 默认是false， true时会生成透明图。
+    
+    verbose: 默认是false，true会输出更详细的log。
+
     配置完成后把change_color_and_format_config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
 2. 通过命令行 (E.g.:'docker run -it --name pbf2imgv4 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -p 9448:80 pbf2imgv4:v1')
     启动一个container就可以开始跑了。
