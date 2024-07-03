@@ -80,7 +80,7 @@ change_color_and_format_config.json
     verbose: 默认是false，true会输出更详细的log。
 
     配置完成后把change_color_and_format_config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
-2. 通过命令行 (E.g.:'docker run -it --name pbf2imgv4 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -p 9448:80 pbf2imgv4:v1')
+2. 通过命令行 (E.g.:'docker run --rm -it --name pbf2imgv4 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -p 9448:80 pbf2imgv4:v2')
     启动一个container就可以开始跑了。
     如果想同时开跑多个container实例，记得区分name和port就行。
 3. 跑完后检查日志和生成的mbtiles，看是否正确。
