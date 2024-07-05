@@ -13,12 +13,15 @@ change_color_and_format_config.json
         "paths": {
             "styles": "/data/style",
             "mbtiles": "/data",
+            "metadata":"/data/metadata.json",
             "output": "/data/test/output"
         },
         "proj": 3857,
         "format": "png",
-        "tileSize": 256,
-        "scale": 1
+        "tileSize": 512,
+        "resize": 256,
+        "scale": 1,
+        "isTransparentWhenEmpty":true
     },
     "styles": {
         "vector": {
