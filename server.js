@@ -310,7 +310,7 @@ function getQueue(id) {
 const args = config;
 let readMbtiles = async function () {
     console.log('args:', args);
-    const metadataDirPath = args['metadataDirPath'];
+    const metadata = args.options.paths['metadata'];
     const proj = args.options['proj'] || 4326;
     const format = args.options['format'] || 'webp';
     const id = 'vector';
@@ -327,8 +327,8 @@ let readMbtiles = async function () {
         }
         const inputDb = connectDb(vectorPath);
         let metadataPath
-        if (metadataDirPath) {
-            metadataPath = path.resolve(metadataDirPath, path.basename(vectorPath, '.sqlite').split(/[\_]/).find(p => p.startsWith('sea2')), 'metadata.json');
+        if (metadata) {
+            metadataPath = path.resolve(metadata);
             if (!fs.existsSync(metadataPath)) {
                 console.error(`path ${metadataPath} not existed!`, metadataPath);
             }

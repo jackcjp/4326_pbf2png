@@ -3,6 +3,7 @@
         "paths": {
             "styles": "/data/style",
             "mbtiles": "/data",
+            "metadata":"/data/metadata.json",
             "output": "/data/test/output"
         },
         "proj": 3857,
