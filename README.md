@@ -60,7 +60,7 @@ change_color_and_format_config.json
     如是文件夹名，则查找该文件夹名下的mbtiles文件；如果有vector和raster两种文件夹名路径，则文件名应保持一致，如都按网格号命名；
     如果两个文件夹名下的文件网格号和数量不一致，则取并集。
 
-    metadataDirPath: 可选，默认用原文件的meatadata；
+    metadata: 可选，默认用原文件的metadata；
     output: 可选，默认用options["paths"]["mbtiles"]）；
     如果mbtiles，metadataDirPath，output不在同一个文件夹下，那么都需要volume进container中。
 
