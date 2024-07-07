@@ -9,13 +9,13 @@
   "sources": {
     "land": {
       "type": "raster",
-      "url": "mbtiles://z8_noglacierbufferreclass.cog.mbtiles",
+      "url": "mbtiles://0-0-0_mt.mbtiles",
       "minzoom": 0,
       "maxzoom": 3
     },
     "ns": {
       "type": "raster",
-      "url": "mbtiles://z8_glacierbufferreclass.cog.mbtiles",
+      "url": "mbtiles://0-0-0_mt.mbtiles",
       "minzoom": 0,
       "maxzoom": 3
     }

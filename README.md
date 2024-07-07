@@ -64,6 +64,10 @@ change_color_and_format_config.json
     如果两个文件夹名下的文件网格号和数量不一致，则取并集。
 
     metadata: 可选，默认用原文件的metadata；
+    
+    注：输入mbtiles中必须要有metadata表，如没有会报错，比如不知输入数据的格式等，会默认格式为pbf，导致报错；
+    如果没有metadata表，建议用test/raster/metadata.sql改改来初始化metadata表。
+    
     output: 可选，默认用options["paths"]["mbtiles"]）；
     如果mbtiles，metadataDirPath，output不在同一个文件夹下，那么都需要volume进container中。
 

@@ -4,7 +4,7 @@
             "styles": "/data/style",
             "mbtiles": "/data",
             "metadata":"/data/metadata.json",
-            "output": "/data/test/output"
+            "output": "/data"
         },
         "proj": 3857,
         "format": "png",
@@ -28,10 +28,10 @@
     },
     "data": {
         "ns": {
-            "mbtiles": "test/raster/z8_glacierbufferreclass.cog.mbtiles"
+            "mbtiles": "ns/0-0-0_mt.mbtiles"
         },
         "land": {
-            "mbtiles": "test/raster/z8_noglacierbufferreclass.cog.mbtiles"
+            "mbtiles": "wuns/0-0-0_mt.mbtiles"
         }
     }
 }
