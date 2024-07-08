@@ -7,3 +7,4 @@ sea10-all*
 *.tar
 *.sqlite
 *.mbtiles
+*.txt
