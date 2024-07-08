@@ -16,6 +16,7 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     the metadataDirPath is the metadata location dir path, such as 'sea2-0-1-z9'.
     If the metadataDirPath dir is not same as the inputDirPath, more volumes are needed.
     E.g.: 'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1'
+
     The outputDirPath(optional) can also be defined in the config.json, volume may be also needed.
     The outputDirPath is needed if the inputDirPath is a sqlite file.
 
@@ -32,16 +33,18 @@ docker run -it --name pbf2png-base -v $(pwd):/data -p 9443:80 cjp/pbf2png:v1
     config.json的路径要和映射的volume 的路径对应
     例如：volume 的路径是/mnt/144_8/gis_data/sea9:/data， inputDirPath就是sea9目录下的一个mbtiles， inputDirPath:"/data";
     metadataDirPath，outputDirPath也是同样的。
+
     如果inputDirPath，metadataDirPath，outputDirPath不是在同一个文件夹下，那么都需要volume进到container中。
     如果inputDirPath是以sqlite结尾的,按sqlite处理且需要传outputDirPath.
 
-    proj 默认是4326的，如果需要做3857的，就需要配置proj为3857
+    proj 默认是4326的，如果需要做3857的，就需要配置proj为3857.
+
     format 默认是 webp， 如果想要其他格式请在config.json中添加 "format":"png"，支持 webp, png and jpeg.
 
     配置完成后把config.json拷贝到 /data 对应的volume的路径下，在这个例子中就是/mnt/144_8/gis_data/sea9下。
 2. 通过命令行 (E.g.:'docker run -it --name pbf2png-base3 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -v /mnt/sharedata/test/sea/sea10:/sea10 -p 9445:80 cjp/pbf2png:v1')
-    启动一个container就可以开始跑了。
-    如果想同时开跑多个container实例，记得区分name和port就行。
+    启动一个container就可以跑了。
+    如果想同时跑多个container实例，记得区分name和port就行。
 3. 跑完后检查日志和生成的mbtiles，看是否正确。
 
 
