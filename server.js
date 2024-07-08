@@ -30,6 +30,31 @@ let connectDb = function (dbPath, attachPath) {
     return betterSqlite(dbPath || attachPath, /*{ verbose: console.log }*/);
 }
 
+function closeDb(dbArr) {
+    dbArr.map(db => db.close())
+}
+
+function checkMetadataExist(dbPathArr) {
+    for (const path of dbPathArr) {
+        if (!path) {
+            continue
+        }
+        const db = betterSqlite(path), tableName = 'metadata';
+
+        const stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?");
+        const result = stmt.get(tableName);
+
+        if (!!result) {
+            console.log(`${path}: table "${tableName}" exists.`);
+        } else {
+            throw new Error(`${path}: table "${tableName}" does not exist.`)
+        }
+
+        // 记得在不再需要数据库连接时，关闭连接
+        db.close();
+    }
+}
+
 let parseMetadata = function (metadataPath) {
     const fileBuff = fs.readFileSync(metadataPath);
     let metadata = JSON.parse(fileBuff);
@@ -58,8 +83,7 @@ let createDb = async function (metadataPath, inputDb, outputPath) {
     outputDb.prepare('CREATE TABLE IF NOT EXISTS tiles (zoom_level integer NOT NULL, tile_column integer NOT NULL, tile_row integer NOT NULL, tile_data blob)').run();
     return outputDb;
 }
-let createIndex = function (outputPath) {
-    const outputDb = connectDb(outputPath);
+let createIndex = function (outputDb) {
     outputDb.prepare('CREATE UNIQUE INDEX IF NOT EXISTS tile_index ON tiles ( "zoom_level" ASC,"tile_column" ASC, "tile_row" ASC);').run();
 }
 
@@ -265,6 +289,9 @@ function getQueue(id) {
     const styleJSONPath = path.resolve(args.options.paths.styles, args.styles[id].style)
     let styleJSON = JSON.parse(fs.readFileSync(styleJSONPath))
     for (const i of Object.keys(args.data)) {
+        if (!styleJSON.sources[i].url) {
+            throw new Error(`${styleJSONPath}: sources[${i}].url is undefined or ''`)
+        }
         if (styleJSON.sources[i].type === 'vector') {
             const vectorDir = path.resolve(args.options.paths.mbtiles, args.data[i].mbtiles);
             console.log(`vectorDir: ${vectorDir}`)
@@ -325,6 +352,7 @@ let readMbtiles = async function () {
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
         }
+        checkMetadataExist([vectorPath, rasterPath])
         const inputDb = connectDb(vectorPath);
         let metadataPath
         if (metadata) {
@@ -338,7 +366,7 @@ let readMbtiles = async function () {
         console.log('calculate pagination ...');
         const startTime = Date.now();
         // 判断rasterPath是否为空，更新查询语句
-        const attached =  vectorPath && rasterPath && rasterPath !== vectorPath
+        const attached = vectorPath && rasterPath && rasterPath !== vectorPath
         const attachedDB = connectDb(vectorPath, rasterPath);
         const count = getCount(attachedDB, attached);
         const pageCount = Math.ceil(count / limit);
@@ -384,8 +412,9 @@ let readMbtiles = async function () {
         }
         console.log('Total count', count, ', insert count:', currCount, ', overBoundCount:', overBoundCount, ', insert count + overBoundCount: ', currCount + overBoundCount);
         console.log('Create index ...');
-        createIndex(outputPath);
+        createIndex(outputDb);
         console.log('Create index finished!');
+        closeDb([outputDb, inputDb, attachedDB]);
         console.log('Finshed! Total time cost:', (Date.now() - startTime) / 1000 / 60);
         fs.appendFileSync(logPath, 'No. ' + (vectorQueue.indexOf(vectorPath) + 1) + ' ' + new Date().toLocaleString() + ' ' + outputPath + '\n');
     }
@@ -393,7 +422,7 @@ let readMbtiles = async function () {
     render.serve_render_remove(render.repo, id);
 }
 
-readMbtiles()
+readMbtiles().catch(console.error);
 
 // run script local, recommand use docker envrionment
 // sudo apt-get update && sudo apt-get install xvfb && npm install
