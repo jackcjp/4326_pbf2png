@@ -185,8 +185,8 @@ const mercatorCenter = function (z, x, y) {
 }
 
 const aa = async (proj, z, x, y) => {
-    const repo = render.repo;
-    await render.serve_render_add();
+    const id = 'vector'
+    render.repo[id] = await render.serve_render_add();
     y = 2 ** z - 1 - y;
     const tileCenter = proj === 3857 ? mercatorCenter(z, x, y) : calCenter(z, x, y);
     // console.log('bbbbbb', tileCenter)
@@ -207,7 +207,7 @@ const aa = async (proj, z, x, y) => {
     // fs.writeFileSync('/data/5_26_12-out.png', tile_data.tile_data)
     fs.writeFileSync(`/data/${z}_${x}_${y}-out2.webp`, tile_data.tile_data)
     console.log('finished')
-    render.serve_render_remove(repo, 'vector');
+    render.serve_render_remove(render.repo, id);
 }
 // aa();
 aa(3857, 3, 4, 2);

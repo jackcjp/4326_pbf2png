@@ -340,14 +340,14 @@ let readMbtiles = async function () {
     const metadata = args.options.paths['metadata'];
     const proj = args.options['proj'] || 4326;
     const format = args.options['format'] || 'webp';
-    const id = 'vector';
+    const id = Object.keys(config.styles)[0];
     let { vectorQueue, rasterQueue, mergedQueue, isDir } = getQueue(id);
 
     console.log('vectorQueue:', vectorQueue, 'rasterQueue', rasterQueue, 'mergedQueue', mergedQueue, 'isDir', isDir);
     for (let vectorPath of mergedQueue) {
         const { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath } = formatPath(vectorPath, rasterQueue, format, proj, isDir);
         // 启动渲染pool
-        await render.serve_render_add(vectorMbTilePath, rasterMbTilePath, isDir);
+        render.repo[id] = await render.serve_render_add(vectorMbTilePath, rasterMbTilePath, isDir);
         console.log('No.', vectorQueue.indexOf(vectorPath) + 1, 'outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);

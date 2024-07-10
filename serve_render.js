@@ -553,7 +553,7 @@ const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
             maxPoolSize,
         );
     }
-
+    return repoobj
 }
 
 const serve_render_remove = (repo, id) => {
@@ -565,9 +565,11 @@ const serve_render_remove = (repo, id) => {
         item.map.renderersStatic.forEach((pool) => {
             pool.close();
         });
+        Object.keys(item.map.sources).forEach((key) => {
+            item.map.sources[key].close();
+        });
     }
     delete repo[id];
-    process.exit();
 }
 
 const renderingImage = async (
@@ -765,7 +767,9 @@ module.exports = {
     serve_render_add,
     serve_render_remove,
     renderImage,
-    repo: repoobj
+    repo: {
+        [id]: repoobj
+    }
 }
 
 // const aa =  async() => {
