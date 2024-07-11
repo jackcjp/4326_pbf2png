@@ -1,16 +1,27 @@
+'use strict';
 
-const path = require('path');
-const fs = require('node:fs');
-const { createCanvas } = require('canvas')
-const advancedPool = require('advanced-pool');
-const mlgl = require('@maplibre/maplibre-gl-native');
-const sharp = require('sharp');
-const mercator = new (require('@mapbox/sphericalmercator'))();
-const axios = require('axios');
-const MBTiles = require('node-mbtilesv123');
-const zlib = require('node:zlib');
-const Color = require('color');
-const config = require('/data/change_color_and_format_config.json');
+import 'canvas';
+import '@maplibre/maplibre-gl-native';
+import advancedPool from 'advanced-pool';
+import fs from 'node:fs';
+import path from 'path';
+import zlib from 'zlib';
+import mlgl from '@maplibre/maplibre-gl-native';
+import { createCanvas } from 'canvas';
+import sharp from 'sharp';
+import Color from 'color';
+import SphericalMercator from '@mapbox/sphericalmercator';
+const mercator = new SphericalMercator();
+import axios from 'axios';
+import MBTiles from 'node-mbtilesv123';
+const config = JSON.parse(fs.readFileSync('/data/change_color_and_format_config.json', 'utf8'));
+
+
+mlgl.on('message', function (err) {
+    if (err.severity === 'WARNING' || err.severity === 'ERROR') {
+        console.log('mbgl:', err);
+    }
+});
 
 const isValidHttpUrl = (string) => {
     let url;
@@ -137,7 +148,7 @@ if (!options.resize) {
 
 // console.log('options:', options, 'params:', params, 'id:', id)
 
-const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
+export const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
     let styleJSON;
 
     const styleFile = params.style;
@@ -556,7 +567,7 @@ const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
     return repoobj
 }
 
-const serve_render_remove = (repo, id) => {
+export const serve_render_remove = (repo, id) => {
     const item = repo[id];
     if (item) {
         item.map?.renderers?.forEach((pool) => {
@@ -745,7 +756,7 @@ const renderingImage = async (
 };
 
 
-async function renderImage(z, x, y, tileCenter, format = 'png', tileSize = 512, scale = 1) {
+export async function renderImage(z, x, y, tileCenter, format = 'png', tileSize = 512, scale = 1) {
     if (
         z < 0 ||
         x < 0 ||
@@ -763,13 +774,8 @@ async function renderImage(z, x, y, tileCenter, format = 'png', tileSize = 512, 
     );
 }
 
-module.exports = {
-    serve_render_add,
-    serve_render_remove,
-    renderImage,
-    repo: {
-        [id]: repoobj
-    }
+export const repo = {
+    [id]: repoobj
 }
 
 // const aa =  async() => {

@@ -1,10 +1,11 @@
-const fs = require('fs');
-const mbgl = require('@maplibre/maplibre-gl-native');
-const mercator = new (require('@mapbox/sphericalmercator'))();
-const betterSqlite = require('better-sqlite3');
-const path = require('path');
-const render = require('./serve_render');
-const config = require('/data/change_color_and_format_config.json');
+'use strict';
+import fs from 'node:fs';
+import SphericalMercator from '@mapbox/sphericalmercator';
+const mercator = new SphericalMercator();
+import betterSqlite from 'better-sqlite3';
+import path from 'path';
+const render = await import('./serve_render.js');
+const config = JSON.parse(fs.readFileSync('/data/change_color_and_format_config.json', 'utf8'));
 const logPath = '/data/log.txt';
 
 const limit = 1000;
@@ -15,11 +16,6 @@ let sourceZoom = 2;
 let targetZoom = 10;  // E.g. Here cut level 10 tiles by level 2 grid
 let bount = undefined;
 
-mbgl.on('message', function (err) {
-    if (err.severity === 'WARNING' || err.severity === 'ERROR') {
-        console.log('mbgl:', err);
-    }
-});
 
 let connectDb = function (dbPath, attachPairs) {
     if (dbPath && attachPairs && !Object.values(attachPairs)?.includes(dbPath)) {

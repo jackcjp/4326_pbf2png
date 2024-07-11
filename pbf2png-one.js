@@ -1,10 +1,13 @@
-const fs = require('fs')
+'use strict';
+import fs from 'node:fs';
+import sharp from 'sharp';
+import zlib from 'zlib';
+import mlgl from '@maplibre/maplibre-gl-native';
+import SphericalMercator from '@mapbox/sphericalmercator';
 
-const mbgl = require('@maplibre/maplibre-gl-native');
-const sharp = require('sharp');
-const zlib = require('node:zlib');
-const mercator = new (require('@mapbox/sphericalmercator'))();
-const render = require('./serve_render');
+const mercator = new SphericalMercator();
+const render = await import('./serve_render.js');
+console.log(render)
 
 // 4326 test
 // const data = fs.readFileSync('168.pbf')
@@ -35,7 +38,7 @@ let topRightCorner = [-90.0, -180.0];
 const tileSize = 256,
     bearing = 0,
     pitch = 0,
-    ratio = 1
+    ratio = 1,
 scale = 1;
 
 
@@ -77,7 +80,7 @@ let truncate_lnglat = function (lng, lat) {
     return [lng, lat];
 }
 
-let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format = 'webp') {
+let changeColorAndFormat = async function (zoom, x, y, lon, lat, tileData, format = 'webp') {
     try {
         const options = {
             mode: "tile",
@@ -92,7 +95,7 @@ let changeColorAndFormat = function (zoom, x, y, lon, lat, tileData, format = 'w
         const map = new mbgl.Map(options);
         // map.load(require('/data/0-12-style-up.json'));
         // map.load(require('/data/style/fixtures/ns-style.json'));
-        map.load(require('/data/style/fixtures/hillshade_v4.json'));
+        map.load(JSON.parse(fs.readFileSync('/data/style/fixtures/hillshade_v4.json', 'utf-8')));
 
         const params = {
             zoom: zoom,
