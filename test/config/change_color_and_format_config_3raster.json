@@ -1,0 +1,34 @@
+{
+	"options":{
+	    "paths":{
+	        "styles":  "/data/style",
+		"mbtiles": "/data",
+		"output": "/data/test/output"
+	    },
+	    "proj": 3857,
+	    "format": "png",
+	    "tileSize": 512,
+	    "resize": 256,
+	    "scale": 1,
+	    "isTransparentWhenEmty": true
+	},
+	"styles": {
+	    "vector": {
+	    	"style": "test_style.json",
+		"tilejson": {
+		    "bounds": [-180,-80,180,80]
+		}
+	    }
+	},
+	"data": {
+	    "ns": {
+	    	"mbtiles": "test/raster/bingchuan.mbtiles"
+	    },
+	    "land": {
+	    	"mbtiles": "test/raster/ludi.mbtiles"
+	    },
+	    "sea": {
+	    	"mbtiles": "test/raster/sea.mbtiles"
+	    }
+	}
+}

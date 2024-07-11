@@ -3,19 +3,17 @@
         "paths": {
             "styles": "/data/style",
             "mbtiles": "/data",
-            "metadata":"/data/metadata.json",
-            "output": "/data"
+            "output": "/data/test/output"
         },
         "proj": 3857,
         "format": "png",
         "tileSize": 512,
         "resize": 256,
-        "scale": 1,
-        "isTransparentWhenEmpty":true
+        "scale": 1
     },
     "styles": {
         "vector": {
-            "style": "test_style.json",
+            "style": "hillshade_v4.json",
             "tilejson": {
                 "bounds": [
                     -180,
@@ -27,11 +25,11 @@
         }
     },
     "data": {
-        "ns": {
-            "mbtiles": "ns/0-0-0_mt.mbtiles"
+        "test_vector": {
+            "mbtiles": "test/vector/vector.mbtiles"
         },
-        "land": {
-            "mbtiles": "wuns/0-0-0_mt.mbtiles"
+        "shade": {
+            "mbtiles": "test/raster/0-0-0_webp.mbtiles"
         }
     }
 }

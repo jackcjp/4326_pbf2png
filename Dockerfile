@@ -105,7 +105,8 @@ RUN mkdir -p /etc/apt/keyrings; \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list; \
     apt-get -qq update; \
-    apt-get install -y nodejs build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev; \
+    apt-get install -y nodejs build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+    libcurl4-openssl-dev libglfw3-dev libpng-dev libicu-dev libwebp-dev; \
     npm i -g npm@latest --registry=https://registry.npmmirror.com;
 
 COPY --from=builder /usr/src/app /usr/src/app

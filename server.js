@@ -21,12 +21,18 @@ mbgl.on('message', function (err) {
     }
 });
 
-let connectDb = function (dbPath, attachPath) {
-    if (dbPath && attachPath && attachPath !== dbPath) {
+let connectDb = function (dbPath, attachPairs) {
+    if (dbPath && attachPairs && !Object.values(attachPairs)?.includes(dbPath)) {
         const db = betterSqlite(dbPath, /*{ verbose: console.log }*/);
-        db.prepare('ATTACH DATABASE ? AS raster').run(attachPath);
+        console.log(`Main db: ${dbPath}`);
+        Object.keys(attachPairs).map(key => {
+            console.log(`Attach ${key}: ${attachPairs[key]}`);
+            db.prepare(`ATTACH DATABASE ? AS ${key}`).run(attachPairs[key]);
+        })
         return db;
     }
+    // dbPath为空则使用attachPairs中的第一个
+    let attachPath = attachPairs && Object.values(attachPairs)?.[0];
     return betterSqlite(dbPath || attachPath, /*{ verbose: console.log }*/);
 }
 
@@ -199,28 +205,27 @@ function getFilelist(inputPath) {
     return { sqliteQueue, isDir };
 }
 
-function getCount(db, attached) {
+function generateUnionSql(attachPairs) {
+    return ' UNION ' + Object.keys(attachPairs).map((key, i) => `SELECT zoom_level, tile_column, tile_row FROM ${key}.tiles`).join(' UNION ');
+}
+
+function getCount(db, attached, attachPairs) {
     if (attached) {
         return db.prepare(`
-            SELECT count(1) from (
+            SELECT count(1) FROM (
                 select zoom_level, tile_column, tile_row from tiles
-                union select zoom_level, tile_column, tile_row from raster.tiles
+                ${generateUnionSql(attachPairs)}
             );`).pluck().get();
     }
     return db.prepare(`SELECT count(1) from tiles;`).pluck().get();
 }
 
-function fetchTile(db, pagination, attached) {
+function fetchTile(db, pagination, attached, attachPairs) {
     if (attached) {
         return db.prepare(`
             SELECT zoom_level z, tile_column x, tile_row y FROM ( 
-                SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM tiles a
-                    LEFT JOIN raster.tiles b ON 
-                    b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row
-                UNION
-                SELECT a.zoom_level zoom_level, a.tile_column tile_column, a.tile_row tile_row FROM raster.tiles a
-                    LEFT JOIN tiles b ON 
-                    b.zoom_level = a.zoom_level and b.tile_column = a.tile_column and b.tile_row = a.tile_row
+                SELECT zoom_level, tile_column, tile_row FROM tiles
+                ${generateUnionSql(attachPairs)}
             ) ORDER BY zoom_level, tile_column, tile_row  LIMIT ${pagination['limit']} OFFSET ${pagination['offset']};`).all();
     }
     return db.prepare(`SELECT zoom_level as z, tile_column as x, tile_row as y from tiles limit ${pagination['limit']} offset ${pagination['offset']};`).all();
@@ -242,29 +247,48 @@ function fetchTileByZXY(db, z, x, y) {
 
 function formatPath(vectorPath, rasterQueue, format, proj, isDir) {
     const extname = path.extname(vectorPath);
-    let rasterPath = rasterQueue && (rasterQueue?.find(p => p.endsWith(path.basename(vectorPath))) || !isDir && rasterQueue[0]) || undefined;
-    // // 判断是否是raster的路径，
-    // // 如果是，那说明没有跟他对应的vector，是被getQueue()方法merge的
-    // // 此时应将vectorPath置为undefined
-    if (rasterPath === vectorPath) {
+    // 如果是文件夹名，则查找唯一对应的raster文件
+    // 如果是mbtiles，则rasterPaths可能不唯一
+    const rasterPathsArr = rasterQueue?.filter(p => p.endsWith(path.basename(vectorPath)))
+    const rasterPaths = rasterQueue && (rasterPathsArr.length && rasterPathsArr || !isDir && rasterQueue) || undefined;
+    const rasterKeyValuePairs = {}
+    Object.keys(config.data).map(key => {
+        const rasterPath = rasterPaths?.find(p => p.includes(config.data[key].mbtiles))
+        if (rasterPath) {
+            rasterKeyValuePairs[key] = rasterPath
+        }
+    });
+
+    let vectorMbTilePath, rasterMbTilePath, rasterPath, outputPath = ''
+    // 判断是否是raster的路径，
+    // 如果是，那说明没有跟他对应的vector，是被getQueue()方法merge的
+    // 此时应将vectorPath置为undefined
+    if (rasterPaths?.includes(vectorPath)) {
+        rasterPath = vectorPath
         vectorPath = undefined
     }
-    console.log('vectorPath:', vectorPath, 'rasterPath:', rasterPath);
-    const vectorMbTilePath = vectorPath ? `mbtiles://${vectorPath}` : undefined
-    const rasterMbTilePath = rasterPath ? `mbtiles://${rasterPath}` : undefined
-    let outputPath = ''
+    // console.log('vectorPath:', vectorPath, 'rasterPaths:', rasterPaths);
+    // 如果是文件夹名，则拼接MbTilePath，否则serve_render_add方法中用style.sources中对应的source.url
+    // 且这里默认rasterPaths只有一个
+    if (isDir) {
+        vectorMbTilePath = vectorPath ? `mbtiles://${vectorPath}` : undefined
+        rasterMbTilePath = rasterPath[0] ? `mbtiles://${rasterPath[0]}` : undefined
+    }
+
     if (vectorPath) {
         outputPath += path.basename(vectorPath, extname) + '_'
     }
-    if (rasterPath) {
-        outputPath += path.basename(rasterPath, extname) + '_'
+    // console.log('outputPath:______111111___', outputPath, rasterPaths);
+    if (rasterPaths) {
+        outputPath += rasterPaths.map(p => path.basename(p, extname)).join('_') + '_'
     }
+    // console.log('outputPath:_____222222222____', outputPath, rasterKeyValuePairs);
 
 
     outputPath = `${outputPath}${format}_${proj}` + extname;
     outputPath = args.options.paths['output'] ?
         path.resolve(args.options.paths['output'], outputPath) : path.resolve(args.options.paths.mbtiles, outputPath);
-    return { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath };
+    return { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath, rasterPaths, rasterKeyValuePairs };
 }
 
 function isArrayEqual(arr1, arr2) {
@@ -314,7 +338,7 @@ function getQueue(id) {
     const isEqual = isArrayEqual(vectorFilelist, rasterFilelist);
     let mergedQueue = [...vectorQueue];
     // 矢量栅格以网格号为名的数据融合。
-    // 如两个文件列表不同，且都是目录，则将rasterFilelist中有，vectorFilelist中没有的文件合并到mergeQueue中
+    // 如两个文件列表不同，且都是文件夹名，则将rasterFilelist中有，vectorFilelist中没有的文件合并到mergeQueue中
     if (!isEqual && isVectorDir && isRasterDir) {
         rasterFilelist.map(p => {
             if (!vectorFilelist.includes(p)) {
@@ -325,10 +349,15 @@ function getQueue(id) {
             }
         });
     } else {
-        // 路径不是目录，且是两个栅格数据融合
+        // 路径不是文件夹名，且是两个栅格数据融合
         if (rasterQueue.length === 2) {
             mergedQueue = [rasterQueue[0]]
             rasterQueue = [rasterQueue[1]]
+        }
+        // 路径不是文件夹名，且是三个栅格数据融合
+        if (rasterQueue.length === 3) {
+            mergedQueue = [rasterQueue[0]]
+            rasterQueue = [rasterQueue[1], rasterQueue[2]]
         }
     }
     return { vectorQueue, rasterQueue, mergedQueue, isDir: isVectorDir && isRasterDir };
@@ -340,20 +369,23 @@ let readMbtiles = async function () {
     const metadata = args.options.paths['metadata'];
     const proj = args.options['proj'] || 4326;
     const format = args.options['format'] || 'webp';
-    const id = Object.keys(config.styles)[0];
+    const id = Object.keys(args.styles)[0];
     let { vectorQueue, rasterQueue, mergedQueue, isDir } = getQueue(id);
 
-    console.log('vectorQueue:', vectorQueue, 'rasterQueue', rasterQueue, 'mergedQueue', mergedQueue, 'isDir', isDir);
+    console.log('vectorQueue:', vectorQueue, 'rasterQueue', rasterQueue, '\nmergedQueue', mergedQueue, 'isDir', isDir);
     for (let vectorPath of mergedQueue) {
-        const { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath } = formatPath(vectorPath, rasterQueue, format, proj, isDir);
+        const { vectorMbTilePath, rasterMbTilePath, outputPath, rasterPath, rasterPaths, rasterKeyValuePairs } = formatPath(vectorPath, rasterQueue, format, proj, isDir);
+        console.log('vectorMbTilePath:', vectorMbTilePath, 'rasterMbTilePath:', rasterMbTilePath,
+            '\nrasterKeyValuePairs:', rasterKeyValuePairs,
+            '\nvectorPath:', vectorPath, 'rasterPath:', rasterPath)
         // 启动渲染pool
         render.repo[id] = await render.serve_render_add(vectorMbTilePath, rasterMbTilePath, isDir);
-        console.log('No.', vectorQueue.indexOf(vectorPath) + 1, 'outputDbPath:', outputPath);
+        console.log('No.', mergedQueue.indexOf(vectorPath) + 1, ', outputDbPath:', outputPath);
         if (fs.existsSync(outputPath)) {
             fs.unlinkSync(outputPath);
         }
-        checkMetadataExist([vectorPath, rasterPath])
-        const inputDb = connectDb(vectorPath);
+        checkMetadataExist([vectorPath, rasterPath, ...rasterPaths])
+        const inputDb = connectDb(vectorPath || rasterPath);
         let metadataPath
         if (metadata) {
             metadataPath = path.resolve(metadata);
@@ -366,9 +398,9 @@ let readMbtiles = async function () {
         console.log('calculate pagination ...');
         const startTime = Date.now();
         // 判断rasterPath是否为空，更新查询语句
-        const attached = vectorPath && rasterPath && rasterPath !== vectorPath
-        const attachedDB = connectDb(vectorPath, rasterPath);
-        const count = getCount(attachedDB, attached);
+        const attached = vectorPath && !rasterPaths?.includes(vectorPath)
+        const attachedDB = connectDb(vectorPath, rasterKeyValuePairs);
+        const count = getCount(attachedDB, attached, rasterKeyValuePairs);
         const pageCount = Math.ceil(count / limit);
         // const pageCount = 1;
         console.log('Total count', count, ', page count', pageCount, ', page limit', limit);
@@ -376,7 +408,7 @@ let readMbtiles = async function () {
         let overBoundCount = 0;
         for (let i = 0; i < pageCount; i++) {
             const offset = i * limit;
-            const data = fetchTile(attachedDB, { offset, limit }, attached);
+            const data = fetchTile(attachedDB, { offset, limit }, attached, rasterKeyValuePairs);
             // const data = [{ z: 4, x: 11, y: 6 }];
             console.log('progress: ', offset, '-', offset + data.length);
             let res = [];

@@ -9,40 +9,38 @@
   "sources": {
     "land": {
       "type": "raster",
-      "url": "mbtiles://0-0-0_mt.mbtiles",
+      "url": "mbtiles://ludi.mbtiles",
       "minzoom": 0,
-      "maxzoom": 3
+      "maxzoom": 6
     },
     "ns": {
       "type": "raster",
-      "url": "mbtiles://0-0-0_mt.mbtiles",
+      "url": "mbtiles://bingchuan.mbtiles",
       "minzoom": 0,
-      "maxzoom": 3
+      "maxzoom": 6
     }
   },
   "layers": [
     {
-      "id": "test",
-      "type": "background",
-      "layout": {
-        "visibility": "visible"
-      },
+	  "id": "test",
+	  "type": "background",
+      "layout": {"visibility": "visible"},
       "paint": {
         "background-color": "#a5cde1"
+      }
+	},
+    {
+      "id": "ns",
+      "type": "raster",
+      "source": "ns",
+      "layout": {
+        "visibility": "visible"
       }
     },
     {
       "id": "land",
       "type": "raster",
       "source": "land",
-      "layout": {
-        "visibility": "visible"
-      }
-    },
-    {
-      "id": "ns",
-      "type": "raster",
-      "source": "ns",
       "layout": {
         "visibility": "visible"
       }

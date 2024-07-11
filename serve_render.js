@@ -559,13 +559,13 @@ const serve_render_add = async (vectorUrl, rasterUrl, isDir = false) => {
 const serve_render_remove = (repo, id) => {
     const item = repo[id];
     if (item) {
-        item.map.renderers.forEach((pool) => {
+        item.map?.renderers?.forEach((pool) => {
             pool.close();
         });
-        item.map.renderersStatic.forEach((pool) => {
+        item.map?.renderersStatic?.forEach((pool) => {
             pool.close();
         });
-        Object.keys(item.map.sources).forEach((key) => {
+        item.map?.sources && Object.keys(item.map?.sources).forEach((key) => {
             item.map.sources[key].close();
         });
     }
