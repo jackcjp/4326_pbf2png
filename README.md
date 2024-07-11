@@ -1,10 +1,11 @@
 ### 支持4326、3857pbf 通过style.json上色，并转格式
 读取配置文件路径下的mbtiles/sqlite中的pbf，上色并转换格式保存到mbtiles中
+默认也支持使用http请求的pbf
 
 
 docker build -t pbf2imgv4:v1 .
 
-docker run -it --name pbf2imgv4-base -v $(pwd):/data -p 9443:80 pbf2imgv4:v1
+docker run --rm -it --name pbf2imgv4-base -v $(pwd):/data -p 9443:80 pbf2imgv4:v1
 
 change_color_and_format_config.json
 ```
