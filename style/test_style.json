@@ -18,17 +18,23 @@
       "url": "mbtiles://bingchuan.mbtiles",
       "minzoom": 0,
       "maxzoom": 6
+    },
+    "sea": {
+      "type": "raster",
+      "url": "mbtiles://sea.mbtiles",
+      "minzoom": 0,
+      "maxzoom": 6
     }
   },
   "layers": [
     {
-	  "id": "test",
-	  "type": "background",
-      "layout": {"visibility": "visible"},
-      "paint": {
-        "background-color": "#a5cde1"
+      "id": "sea",
+      "type": "raster",
+      "source": "sea",
+      "layout": {
+        "visibility": "visible"
       }
-	},
+    },
     {
       "id": "ns",
       "type": "raster",

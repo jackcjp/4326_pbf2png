@@ -2,8 +2,8 @@
 	"options":{
 	    "paths":{
 	        "styles":  "/data/style",
-		"mbtiles": "/data",
-		"output": "/data/test/output"
+			"mbtiles": "/data",
+			"output": "/data/test/output"
 	    },
 	    "proj": 3857,
 	    "format": "png",
@@ -26,6 +26,9 @@
 	    },
 	    "land": {
 	    	"mbtiles": "test/raster/ludi.mbtiles"
+	    },
+	    "sea": {
+	    	"mbtiles": "test/raster/sea.mbtiles"
 	    }
 	}
 }
