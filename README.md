@@ -110,8 +110,7 @@ docker build -t pbf2imgv4:v1 .
     配置完成后把change_color_and_format_config.json和style.json拷贝到 映射到container的路径下，这里也就是/data 对应的volume的路径下。
 
 2. 准备数据；
-    准备数据时如果有背景色的，用gdal2tiles执行切瓦片命令时需要去掉-x参数，空瓦片的zxy也要有。
-    也就是说至少要有一个db里有全量的zxy，否则可能会出现瓦片缺失的情况，要根据具体情况分析。
+    如果有背景色的，用gdal2tiles执行切瓦片命令时需要去掉-x参数，空瓦片的zxy也要有。也就是说至少要有一个db里有全量的zxy，否则可能会出现瓦片缺失的情况，要根据具体情况分析。
 
 3. 通过命令行 docker run --rm -it --name container_name -v $(pwd):/data image_name:version
      (E.g.:'docker run --rm -it --name pbf2imgv4 -v /mnt/nas/data.output/zcc/4326_sea_mbtiles:/data -p 9448:80 pbf2imgv4:v5')
